@@ -1,0 +1,87 @@
+{
+  "timezone": "Europe/London",
+  "display": {
+    "width": 1280,
+    "height": 720,
+    "fullscreen": true,
+    "fps": 10
+  },
+  "theme": {},
+  "widgets": [
+    {
+      "id": "clock",
+      "type": "clock",
+      "title": "01 / LOCAL TIME",
+      "rect": [
+        0.025,
+        0.045,
+        0.57,
+        0.365
+      ],
+      "options": {
+        "format": "%H:%M",
+        "date_format": "%A, %d %B %Y"
+      }
+    },
+    {
+      "id": "weather",
+      "type": "weather",
+      "title": "02 / WEATHER STATION",
+      "rect": [
+        0.615,
+        0.045,
+        0.36,
+        0.365
+      ],
+      "options": {
+        "refresh_seconds": 900,
+        "temperature_unit": "celsius",
+        "wind_speed_unit": "mph",
+        "location_source": "config.json"
+      }
+    },
+    {
+      "id": "agenda",
+      "type": "agenda",
+      "title": "03 / MISSION SCHEDULE",
+      "rect": [
+        0.025,
+        0.44,
+        0.57,
+        0.515
+      ],
+      "options": {
+        "source": "data/agenda.json",
+        "refresh_seconds": 30,
+        "limit": 3
+      }
+    },
+    {
+      "id": "note",
+      "type": "text",
+      "title": "04 / DAILY BRIEF",
+      "rect": [
+        0.615,
+        0.44,
+        0.36,
+        0.255
+      ],
+      "options": {
+        "text": "NEXUS HOME TERMINAL\nE: EDIT LAYOUT\nS: SAVE / F5: NEXUS",
+        "size": 25
+      }
+    },
+    {
+      "id": "system",
+      "type": "system",
+      "title": "05 / SYSTEM STATUS",
+      "rect": [
+        0.615,
+        0.725,
+        0.36,
+        0.23
+      ],
+      "options": {}
+    }
+  ]
+}

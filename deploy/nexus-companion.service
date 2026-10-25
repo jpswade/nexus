@@ -1,0 +1,11 @@
+[Unit]
+Description=Nexus ILI9486 companion display
+
+[Service]
+WorkingDirectory=%h/dashboard
+ExecStart=/usr/bin/python3 %h/dashboard/companion.py
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target

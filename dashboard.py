@@ -2,10 +2,12 @@ import os
 import argparse
 
 arguments = argparse.ArgumentParser(description="Nexus desktop dashboard")
+arguments.add_argument('--profile', choices=('uk', 'technical'), default=os.environ.get('NEXUS_PROFILE', 'uk'))
 arguments.add_argument('--snapshot', help='Render one cached-data frame to a PNG without opening the monitor')
 arguments.add_argument('--workspace', type=int, choices=range(1,5), default=1)
 arguments.add_argument('--age', type=float, default=0, help='Workspace animation age for snapshots')
 ARGS = arguments.parse_args()
+os.environ['NEXUS_PROFILE'] = ARGS.profile
 if ARGS.snapshot:
     os.environ['SDL_VIDEODRIVER'] = 'dummy'
     os.environ['SDL_RENDER_DRIVER'] = 'software'
@@ -30,7 +32,8 @@ try:
         raise ValueError("Coordinates out of range")
 except (OSError, ValueError, KeyError, TypeError) as error:
     raise SystemExit(f"Invalid NEXUS config at {CONFIG_PATH}: {error}. See config.example.json.")
-CACHE = pathlib.Path(__file__).parent / ".cache/weather.json"
+CACHE_DIR = pathlib.Path(os.environ.get("NEXUS_CACHE", str(pathlib.Path(__file__).parent / ".cache")))
+CACHE = CACHE_DIR / "weather.json"
 CACHE.parent.mkdir(parents=True, exist_ok=True)
 weather = None
 weather_failed = False
@@ -96,14 +99,23 @@ from feeds import PlanetFeeds, MAX_AGES, age_label
 from security import SecurityFeeds
 from security_ui import SecurityDesktop
 from workspaces import WorkspaceCycle, NAMES
+from terminal_theme import PALETTE, font as terminal_font, switch_view
+from bitmap_font import ascii_box
 from types import SimpleNamespace
+from preparedness import PreparednessFeeds
+from preparedness_ui import PreparednessDesktop, NAMES as UK_NAMES
+if ARGS.profile == "uk":
+    NAMES = UK_NAMES
 
-planet = PlanetFeeds(pathlib.Path(__file__).parent / '.cache')
-if not ARGS.snapshot:
+planet = PlanetFeeds(CACHE_DIR)
+if not ARGS.snapshot and ARGS.profile == "technical":
     planet.start()
-security = SecurityFeeds(pathlib.Path(__file__).parent / ".cache/security")
-if not ARGS.snapshot:
+security = SecurityFeeds(CACHE_DIR / "security")
+if not ARGS.snapshot and ARGS.profile == "technical":
     security.start()
+preparedness = PreparednessFeeds(CACHE_DIR / "preparedness", LOCATION)
+if not ARGS.snapshot and ARGS.profile == "uk":
+    preparedness.start()
 
 os.environ.setdefault("SDL_RENDER_DRIVER", "opengles2")
 pygame.display.init()
@@ -117,15 +129,19 @@ else:
         screen = pygame.display.set_mode((1280, 720), pygame.FULLSCREEN | pygame.SCALED, vsync=1)
     except pygame.error:
         screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-pygame.display.set_caption('Nexus — Observatory desktop')
-pygame.mouse.set_visible(False)
+pygame.display.set_caption('NEXUS / TERMINAL')
+pygame.mouse.set_visible(ARGS.profile == "uk")
 W, H = screen.get_size()
 S = min(W/1280, H/720)
 OX, OY = (W-1280*S)/2, (H-720*S)/2
-# BeOS-inspired chrome: yellow tabs, warm grey controls and a teal desktop.
-BG=(47,104,119); PANEL=(219,220,216); LINE=(102,105,105)
-TEXT=(28,32,35); DIM=(83,89,93); TEAL=(17,94,137); LIME=(36,102,65); BLUE=(51,99,163); AMBER=(165,66,24)
-TAB=(255,218,67); WHITE=(250,250,243); SHADOW=(32,67,78)
+# Shared phosphor terminal palette.
+BG=pygame.Color(PALETTE['background']); PANEL=pygame.Color(PALETTE['panel'])
+LINE=pygame.Color(PALETTE['border']); TEXT=pygame.Color(PALETTE['text'])
+DIM=pygame.Color(PALETTE['muted']); TEAL=pygame.Color(PALETTE['accent']); LIME=pygame.Color(PALETTE['lime']); BLUE=pygame.Color(PALETTE['blue'])
+AMBER=pygame.Color(PALETTE['error']); TAB=TEXT; WHITE=TEXT; SHADOW=BG
+from live_telemetry import Telemetry
+telemetry=Telemetry()
+motion_time=0.
 fonts = {}
 labels = collections.OrderedDict()
 
@@ -135,9 +151,10 @@ def line(a,b,color=LINE,width=1): pygame.draw.line(screen,color,pos(*a),pos(*b),
 def circle(x,y,r,color,width=0): pygame.draw.circle(screen,color,pos(x,y),max(1,round(r*S)),0 if not width else max(1,round(width*S)))
 def text(value,x,y,size=12,color=TEXT,right=False):
     value=str(value)
+    color=tuple(pygame.Color(color))
     key=(value,size,color)
     if key not in labels:
-        if size not in fonts: fonts[size]=pygame.font.SysFont('dejavusansmono' if size>=18 else 'dejavusans',max(9,round(size*S)))
+        if size not in fonts: fonts[size]=terminal_font(max(8,size)*S)
         labels[key]=fonts[size].render(value,True,color)
         if len(labels)>450: labels.popitem(last=False)
     image=labels[key]
@@ -147,35 +164,36 @@ def text(value,x,y,size=12,color=TEXT,right=False):
 def mono(value,x,y,size=12,color=(185,231,207)):
     key=('mono',size)
     if key not in fonts:
-        fonts[key]=pygame.font.SysFont('dejavusansmono',max(9,round(size*S)))
+        fonts[key]=terminal_font(max(16,size)*S)
     label=fonts[key].render(str(value),True,color)
     screen.blit(label,pos(x,y))
 
 def bevel(x,y,w,h,fill=PANEL,sunken=False):
-    pygame.draw.rect(screen,fill,rect(x,y,w,h))
-    light,dark=((100,105,107),WHITE) if sunken else (WHITE,(91,95,97))
-    line((x,y),(x+w-1,y),light)
-    line((x,y),(x,y+h-1),light)
-    line((x,y+h-1),(x+w-1,y+h-1),dark)
-    line((x+w-1,y),(x+w-1,y+h-1),dark)
+    pygame.draw.rect(screen,PANEL,rect(x,y,w,h))
+    pygame.draw.rect(screen,LINE,rect(x,y,w,h),max(1,round(S)))
+    line((x,y),(x+min(w,60),y),TEAL,2)
 
 def panel(x,y,w,h,label,tag):
-    pygame.draw.rect(screen,SHADOW,rect(x+4,y+4,w,h))
     bevel(x,y,w,h)
-    # A short yellow title tab rather than a full-width title bar.
-    title=label.title().replace('Iss','ISS').replace('Noaa','NOAA').replace('Php','PHP').replace('Cve','CVE').replace('Kev','KEV')
-    tabwidth=min(w-8,max(116,len(title)*6.7+39))
-    bevel(x,y-19,tabwidth,20,TAB)
-    bevel(x+7,y-14,10,10,(244,201,49))
-    text(title,x+25,y-16,11,TEXT)
-    for k in range(3):
-        line((x+tabwidth-12+k*2,y-13),(x+tabwidth-12+k*2,y-6),(160,128,25))
-    text(tag,x+w-12,y+11,9,DIM,True)
-    line((x+10,y+29),(x+w-10,y+29),(177,181,179))
-    line((x+10,y+30),(x+w-10,y+30),WHITE)
-    # Familiar resize-grip detail in the lower-right corner.
-    for i in range(3):
-        line((x+w-5-i*4,y+h-4),(x+w-4,y+h-5-i*4),(140,144,142))
+    text(label.upper(),x+16,y+15,18,TEAL)
+    # Narrow panels reserve the heading for the section name.
+    if w>650:text(tag.upper(),x+w-16,y+17,16,DIM,True)
+    line((x+16,y+38),(x+w-16,y+38),LINE)
+    # Moving edge tracer: decorative motion, independent of source status.
+    perimeter=2*(w+h)
+    phase=(motion_time*36+x+y)%perimeter
+    def edge(distance):
+        distance%=perimeter
+        if distance<w:return x+distance,y
+        distance-=w
+        if distance<h:return x+w,y+distance
+        distance-=h
+        if distance<w:return x+w-distance,y+h
+        return x,y+h-(distance-w)
+    for trail in range(6):
+        colour=TEAL if trail<2 else LINE
+        line(edge(phase-trail*4),edge(phase-trail*4-2),colour,2)
+    line((x,y),(x,y+12),TEAL,2)
 
 def bar(x,y,w,value,color):
     bevel(x,y,w,7,(176,182,180),True)
@@ -183,6 +201,16 @@ def bar(x,y,w,value,color):
 
 desktop = SecurityDesktop(SimpleNamespace(text=text, mono=mono, panel=panel, bevel=bevel,
                                          line=line, TEXT=TEXT, DIM=DIM, TEAL=TEAL, AMBER=AMBER, LIME=LIME))
+def map_blit(surface,x,y):
+    screen.blit(pygame.transform.scale(surface,(round(surface.get_width()*S),round(surface.get_height()*S))),pos(x,y))
+
+prepared_ui = PreparednessDesktop(SimpleNamespace(text=text, panel=panel, line=line, blit=map_blit,
+    TEXT=TEXT, DIM=DIM, TEAL=TEAL, LIME=LIME, AMBER=AMBER, RED=(255,100,100)), preparedness, LOCATION)
+
+def open_source(url):
+    import webbrowser
+    threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
+
 cycle=WorkspaceCycle(duration=32,initial=ARGS.workspace-1)
 if ARGS.snapshot:cycle.automatic=False
 manual_terminal=False
@@ -200,9 +228,8 @@ grid = [[vector(lon,lat) for lon in range(-180,181,5)] for lat in range(-60,61,3
 grid += [[vector(lon,lat) for lat in range(-90,91,5)] for lon in range(-180,180,30)]
 
 screen.fill(BG)
-# Subtle desktop pinstripes, drawn once rather than on each frame.
-for y in range(0,720,4):line((0,y),(1280,y),(46,101,116))
-bevel(28,672,1224,29,(209,212,209))
+# Clean black background: no scanlines or blur.
+bevel(28,660,1224,60)
 background=screen.copy()
 running=True
 paused=False
@@ -222,32 +249,8 @@ signal.signal(signal.SIGINT,stop)
 print(f'NEXUS observatory ready: {W}x{H}, target=12fps',flush=True)
 def draw_observatory(age):
     global camera_lon,camera_has_iss
-    panel(28,105,320,184,'Time & date','UTC'+now.astimezone().strftime('%z'))
-    text(now.strftime('%H:%M'),44,137,62,TEXT)
-    text(now.strftime('%S'),306,177,18,TEAL,True)
-    text(now.strftime('%A').upper(),46,222,12,LIME)
-    text(now.strftime('%d %b %Y').upper(),46,246,13,DIM)
-    bar(220,253,108,now.second/60*100,TEAL)
-
-    panel(28,307,320,247,'Solar monitor','NOAA / SWPC')
-    text('PLANETARY Kp INDEX',44,346,11,DIM)
-    if kp:
-        text(f'{kp["value"]:.2f}',44,366,42,TEXT)
-        activity='STORM LEVEL' if kp['value']>=5 else 'UNSETTLED' if kp['value']>=4 else 'QUIET'
-        text(activity,330,391,11,AMBER if kp['value']>=4 else LIME,True)
-        for i in range(9):
-            color=TEAL if i<kp['value'] else (174,181,178)
-            pygame.draw.rect(screen,color,rect(44+i*32,423,26,7))
-        text(stamp('kp'),44,441,9,DIM)
-    else:
-        text(stamp('kp'),44,382,13,DIM)
-    text('SOLAR WIND',44,475,11,DIM)
-    text(f'{wind["value"]:.0f} km/s' if wind else '-- km/s',330,470,20,TEAL,True)
-    text(stamp('wind'),44,510,9,AMBER if wind and epoch-wind['observed']>MAX_AGES['wind'] else DIM)
-    text('Kp 0-9 / GEOMAGNETIC ACTIVITY',44,533,9,DIM)
-
-    panel(366,105,540,449,'Orbital navigator','ISS + SEISMIC')
-    cx,cy,radius=636,326,169
+    panel(28,105,770,551,'04 / ORBITAL OBSERVATORY','ISS + USGS')
+    cx,cy,radius=413,345,172
     target=(iss['longitude']-25 if iss else 0)+18*math.sin(t*.045)
     if camera_lon is None or (iss and not camera_has_iss):
         camera_lon=target
@@ -274,12 +277,12 @@ def draw_observatory(age):
                 points=[]
         if len(points)>1:pygame.draw.lines(screen,color,False,points,max(1,round(S)))
 
-    circle(cx+2,cy+3,radius+2,(132,140,141))
-    circle(cx,cy,radius+13,(157,166,165),1)
-    circle(cx,cy,radius,(18,47,76))
-    circle(cx,cy,radius,(7,31,53),1)
-    for ring in grid:globe_lines(ring,(40,78,108))
-    for ring in coast:globe_lines(ring,(133,193,188))
+    circle(cx+2,cy+3,radius+2,BG)
+    circle(cx,cy,radius+13,LINE,1)
+    circle(cx,cy,radius,BG)
+    circle(cx,cy,radius,LINE,1)
+    for ring in grid:globe_lines(ring,LINE)
+    for ring in coast:globe_lines(ring,TEXT)
     for index,quake in enumerate(earthquakes):
         x,y,z=project(vector(quake['lon'],quake['lat']))
         if z>0:
@@ -289,74 +292,47 @@ def draw_observatory(age):
     if iss:
         ix,iy,iz=project(vector(iss['longitude'],iss['latitude']))
         if iz>0:
-            circle(ix,iy,10+3*math.sin(t*2),TAB,1)
-            circle(ix,iy,4,TAB)
-            line((ix+9,iy-9),(ix+27,iy-27),TAB)
-            text('ISS',ix+30,iy-39,12,TAB)
-        text(f'{iss["latitude"]:+06.2f} LAT / {iss["longitude"]:+07.2f} LON',386,477,11,TEAL)
+            circle(ix,iy,8,TEXT,1)
+            circle(ix,iy,3,TEXT)
+            text('ISS',ix+14,iy-14,20,TEXT)
+        text(f'ISS {iss["latitude"]:+.1f} LAT / {iss["longitude"]:+.1f} LON',48,538,24,TEXT)
+        text(f'{iss["altitude"]:.0f} KM ALT / {iss["velocity"]:,.0f} KM/H',48,573,22,DIM)
+        text(stamp('iss'),778,579,18,AMBER if 'iss' in errors or epoch-iss['observed']>MAX_AGES['iss'] else DIM,True)
     else:
-        text('AWAITING ORBITAL POSITION',386,477,11,DIM)
-    text('Orange: M2.5+ earthquakes',386,503,9,AMBER)
-    text('Yellow: ISS position',386,523,9,LIME)
-    text(stamp('iss'),887,523,9,DIM,True)
+        text('ISS / '+stamp('iss'),48,550,26,DIM)
+    text('GREEN: ISS / AMBER: M2.5+ EARTHQUAKES',48,620,18,DIM)
 
-    panel(924,105,328,184,'Weather / '+str(LOCATION.get('name','LOCAL')).upper()[:18],'LOCAL')
+    panel(820,105,432,551,'LOCAL / PLANETARY STATUS','')
+    text(now.strftime('%H:%M:%S'),842,152,48,TEXT)
+    text(now.strftime('%a %d %b %Y').upper(),842,211,22,DIM)
+    line((842,252),(1230,252))
     sample=weather
+    text(str(LOCATION.get('name','LOCAL')).upper()[:25],842,270,20,DIM)
     if sample:
         stale=weather_failed or epoch-sample['fetched']>1800
-        text(f'{sample["temp"]:.0f}°',940,139,50,TEXT)
-        wx,wy=1204,178
-        circle(wx,wy,23,(180,184,177),1)
-        circle(wx,wy,12,TEAL,1)
-        for k in range(8):
-            a=t*.12+k*math.pi/4
-            line((wx+math.cos(a)*29,wy+math.sin(a)*29),(wx+math.cos(a)*34,wy+math.sin(a)*34),TEAL)
-        text(conditions(sample['code']).upper(),940,211,14,TEAL)
-        daily=f'HI {sample["high"]:.0f}° / LO {sample["low"]:.0f}°' if sample['date']==now.strftime('%Y-%m-%d') else 'DAILY FORECAST STALE'
-        text(daily,940,240,11,DIM)
-        text(('STALE / ' if stale else '')+age_label(epoch-sample['fetched']).upper(),1236,263,9,AMBER if stale else DIM,True)
-        text('OPEN-METEO',940,263,9,DIM)
+        text(f'{sample["temp"]:.0f} C / '+conditions(sample['code']).upper(),842,304,24,TEXT)
+        text('OPEN-METEO / '+('STALE' if stale else age_label(epoch-sample['fetched']).upper()),842,340,18,AMBER if stale else DIM)
     else:
-        text('WEATHER OFFLINE' if weather_failed else 'ACQUIRING WEATHER',940,160,16,DIM)
-        text('RETRYING IN BACKGROUND',940,215,11,DIM)
-
-    panel(924,307,328,247,'Seismic monitor','USGS / 24H')
-    if quakes:
-        text(str(len(earthquakes)),940,343,43,TEXT)
-        text('M2.5+ EVENTS',1236,373,11,DIM,True)
-        text(f'STRONGEST / M{strongest["mag"]:.1f}' if strongest else 'NO EVENTS REPORTED',940,405,12,AMBER)
-        place=strongest['place'] if strongest else ''
-        # Wrap the source location rather than silently truncating it.
-        words=place.split(); lines=['']
-        for word in words:
-            if len(lines[-1])+len(word)+1>36:lines.append(word)
-            else:lines[-1]=(lines[-1]+' '+word).strip()
-        for i,row in enumerate(lines[:2]):text(row,940,435+i*18,10,DIM)
-        if earthquakes:
-            text('LATEST / M'+f'{earthquakes[0]["mag"]:.1f} / '+age_label(epoch-earthquakes[0]['time']),940,488,10,TEAL)
-    else:
-        text(stamp('quakes'),940,365,13,DIM)
-    text(stamp('quakes'),940,531,9,DIM)
-
-    panel(28,573,1224,83,'International Space Station','WHERE THE ISS AT? / 20s')
-    if iss:
-        period=2*math.pi*math.sqrt((6371+iss['altitude'])**3/398600.4418)/60
-        for x,label,value in [
-            (44,'GROUND POSITION',f'{iss["latitude"]:+.1f}° / {iss["longitude"]:+.1f}°'),
-            (373,'ALTITUDE',f'{iss["altitude"]:.1f} km'),
-            (641,'VELOCITY',f'{iss["velocity"]:,.0f} km/h'),
-            (990,'ORBIT / CIRCULAR EST.',f'{period:.1f} min'),
-        ]:
-            text(label,x,608,9,DIM)
-            text(value,x,627,18,LIME if x==641 else TEXT)
-    else:
-        text('ACQUIRING ORBITAL DATA / GRAPHICS CONTINUE OFFLINE',44,617,13,DIM)
+        text('WEATHER / CONNECTING',842,310,24,DIM)
+    line((842,380),(1230,380))
+    text('NOAA / GEOMAGNETIC Kp',842,400,20,DIM)
+    text(f'{kp["value"]:.2f} / '+('STORM' if kp['value']>=5 else 'QUIET' if kp['value']<4 else 'UNSETTLED') if kp else stamp('kp'),842,432,28,AMBER if kp and kp['value']>=4 else TEXT)
+    text(stamp('kp'),842,469,18,DIM)
+    line((842,506),(1230,506))
+    text('USGS / LAST 24 HOURS',842,526,20,DIM)
+    text(f'{len(earthquakes)} M2.5+ EVENTS' if quakes else stamp('quakes'),842,559,26,TEXT)
+    text(stamp('quakes'),842,604,18,DIM)
 
 while running:
     input_time=(last_pause if paused else time.monotonic())-start-frozen
     if ARGS.snapshot:input_time=ARGS.age
     for event in pygame.event.get():
         if event.type==pygame.QUIT or (event.type==pygame.KEYDOWN and event.key==pygame.K_ESCAPE):running=False
+        elif event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and ARGS.profile=='uk':
+            url=prepared_ui.clicked_url(((event.pos[0]-OX)/S,(event.pos[1]-OY)/S))
+            if url:open_source(url)
+        elif event.type==pygame.MOUSEWHEEL and ARGS.profile=='uk':
+            prepared_ui.scroll(event.y*3)
         elif event.type==pygame.KEYDOWN:
             if event.key==pygame.K_SPACE:
                 paused=not paused
@@ -368,11 +344,23 @@ while running:
             elif event.key in (pygame.K_LEFT,pygame.K_RIGHT):
                 cycle.step(1 if event.key==pygame.K_RIGHT else -1,input_time)
                 manual_terminal=False;terminal_hidden=False
+            elif event.key==pygame.K_F5:
+                pygame.quit()
+                switch_view('home')
+            elif event.key==pygame.K_F6:
+                os.environ['NEXUS_PROFILE']='technical' if ARGS.profile=='uk' else 'uk'
+                pygame.quit()
+                switch_view('nexus')
+            elif event.key==pygame.K_o and ARGS.profile=='uk':
+                open_source(prepared_ui.active_url)
+            elif event.key in (pygame.K_PAGEUP,pygame.K_PAGEDOWN,pygame.K_END) and ARGS.profile=='uk':
+                if event.key==pygame.K_END:prepared_ui.scroll_offset=0
+                else:prepared_ui.scroll(8 if event.key==pygame.K_PAGEUP else -8)
             elif event.key==pygame.K_a:
                 cycle.automatic=not cycle.automatic
                 cycle.since=input_time
-            elif event.key==pygame.K_t:
-                currently_visible=manual_terminal or (not terminal_hidden and 7<=input_time-cycle.since<23)
+            elif event.key==pygame.K_t and ARGS.profile=='technical':
+                currently_visible=manual_terminal
                 manual_terminal=not currently_visible
                 terminal_hidden=currently_visible
                 terminal_since=input_time
@@ -387,6 +375,7 @@ while running:
     epoch=time.time()
     feeds, errors=planet.snapshot()
     security_data,security_errors=security.snapshot()
+    uk_data,uk_errors=preparedness.snapshot()
     iss=feeds.get('iss')
     quakes=feeds.get('quakes')
     kp=feeds.get('kp')
@@ -401,49 +390,50 @@ while running:
         stale=name in errors or age>MAX_AGES[name]
         return ('STALE / ' if stale else 'OBS / ')+age_label(age).upper()
 
+    motion_time=t
+    if not paused:telemetry.sample()
     screen.blit(background,(0,0))
-    bevel(28,18,32,32,(29,69,113))
-    text('N',35,20,23,TAB)
-    text('Nexus',72,14,27,WHITE)
-    text(NAMES[workspace]+'  /  '+('Auto rotation' if cycle.automatic else 'Manual workspace'),74,49,12,(217,235,231))
-    # A compact Deskbar-inspired status tray.
-    bevel(1016,14,236,56)
-    bevel(1021,19,72,23,TAB)
-    text('NEXUS',1030,23,11,TEXT)
-    text(now.strftime('%H:%M:%S'),1238,23,12,TEXT,True)
-    count=len(feeds)+len(security_data)
-    circle(1030,55,3,LIME if count==7 and not errors and not security_errors else AMBER)
-    text(f'{count} of 7 feeds connected',1042,47,11,DIM)
-    for i in range(4):
-        bevel(862+i*30,21,25,21,TAB if i==workspace else (175,196,197),i==workspace)
-        text(str(i+1),870+i*30,24,10,TEXT)
-    text(f'Next: {max(0,int(cycle.duration-age))}s' if cycle.automatic else 'Manual / A: auto',861,48,10,(217,235,231))
-
-    if workspace==3:
+    for node in range(25):
+        x=30+node*49
+        brightness=(math.sin(t*.8+node*.4)+1)/2
+        circle(x,97,1,LIME if brightness>.94 else LINE)
+    text('N E X U S',28,9,42,TEAL)
+    text('CIVIL / NETWORK CONSOLE',30,48,12,DIM)
+    text(NAMES[workspace].upper(),320,27,22,DIM)
+    text(now.strftime('%H:%M:%S'),1252,18,32,TEXT,True)
+    if ARGS.profile!='uk':
+        text(' '.join(f'[{i+1}]' if i==workspace else f' {i+1} ' for i in range(4)),28,64,20,TEXT)
+        text('CMD> _' if int(epoch*2)%2 else 'CMD>',680,64,18,DIM)
+        mode=f'AUTO / {max(0,int(cycle.duration-age))}s' if cycle.automatic else 'MANUAL'
+        text(mode,420,64,20,DIM)
+        count=len(uk_data) if ARGS.profile=='uk' else len(feeds)+len(security_data)
+        total=len(preparedness.urls) if ARGS.profile=='uk' else 7
+        failed=uk_errors if ARGS.profile=='uk' else errors|security_errors
+        text(f'{count}/{total} SOURCES' + (' / RETRYING' if failed else ''),1252,64,20,
+             AMBER if failed else DIM,True)
+    briefing_age=7.65+(t-terminal_since) if manual_terminal else age
+    # Briefings replace the main view instead of covering it with a popup.
+    show_brief=manual_terminal and not terminal_hidden
+    if ARGS.profile=='uk':
+        prepared_ui.local_weather=weather
+        prepared_ui.weather_failed=weather_failed
+        prepared_ui.draw(workspace,age,uk_data,uk_errors,epoch,stream_age=t)
+    elif show_brief:
+        desktop.terminal(workspace,briefing_age,security_data,security_errors,epoch,
+                         (workspace,cycle.since,manual_terminal),forced=True)
+    elif workspace==3:
         draw_observatory(age)
     else:
         desktop.draw(workspace,age,security_data,security_errors,epoch)
-    briefing_age=7.65+(t-terminal_since) if manual_terminal else age
-    if not terminal_hidden:
-        desktop.terminal(workspace,briefing_age,security_data,security_errors,epoch,
-                         (workspace,cycle.since,manual_terminal),forced=manual_terminal)
-    facts=['1 SECURITY / 2 PHP / 3 EXPLOITED / 4 OBSERVATORY / 32s AUTO ROTATION', 'ARROWS SWITCH / A AUTO / T TERMINAL', 'ADVISORY WATCH / NO ASSET INVENTORY']
-    if strongest:facts.append(f'M{strongest["mag"]:.1f} / {strongest["place"].upper()} / LAST 24H')
-    if kp:facts.append(f'GEOMAGNETIC Kp {kp["value"]:.2f} / NOAA')
-    if wind:facts.append(f'SOLAR WIND {wind["value"]:.0f} KM/S / {stamp("wind")}')
-    php_rows=security_data.get('php',{}).get('items',[])
-    if php_rows:
-        facts.append('PHP / '+php_rows[0]['id']+' / '+php_rows[0]['summary'])
-    ticker='    +++    '.join(facts)+'    +++    '
-    clip=screen.get_clip()
-    screen.set_clip(rect(36,676,940,20))
-    if 10 not in fonts:fonts[10]=pygame.font.SysFont('dejavusansmono',max(10,round(10*S)))
-    span=fonts[10].size(ticker)[0]/S
-    offset=(t*34)%span
-    text(ticker,36-offset,677,10,DIM)
-    text(ticker,36-offset+span,677,10,DIM)
-    screen.set_clip(clip)
-    text('Space: pause  /  Esc: exit',1240,677,10,DIM,True)
+    controls='1-4 VIEWS / A AUTO / O SOURCE / F5 HOME / F6 TECH' if ARGS.profile=='uk' else '1-4 VIEWS / A AUTO / T BRIEF / F5 HOME / F6 UK'
+    text(telemetry.label(),44,669,15,TEAL)
+    text('LOCAL TELEMETRY / 2s',1236,669,14,LIME,True)
+    samples=list(telemetry.history)
+    if len(samples)>1:
+        points=[(650+i*3,687-value*.18) for i,value in enumerate(samples)]
+        for a,b in zip(points,points[1:]):line(a,b,TEAL)
+    text(controls,44,698,13,DIM)
+    text('SPACE PAUSE / ESC EXIT',1236,698,13,DIM,True)
     if ARGS.snapshot:
         pygame.image.save(screen,ARGS.snapshot)
         running=False

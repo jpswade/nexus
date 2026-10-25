@@ -1,28 +1,35 @@
 # NEXUS
 
-An animated security and planetary desktop for a Raspberry Pi and an HDMI monitor. A rotating globe, orbital statistics and natural events, built with Python and Pygame. The interface takes its cues from BeOS: short yellow title tabs, bevelled grey windows, a teal desktop and a compact Deskbar-style status tray.
+A Pygame terminal for Raspberry Pi and HDMI monitors. One repository contains both the security/observatory display and the configurable home dashboard. Both share a midnight-blue background, cyan monospace text, amber warnings, and thin instrument panels inspired by 1990s cyber-thriller interfaces. The UK threat and midnight views include a rotating wireframe sphere, orbiting nodes and counter-rotating arcs. These graphics are decorative, not incident telemetry.
 
-## Workspaces
+## Two views, one launcher
 
-The desktop rotates every 32 seconds through four workspaces:
+```sh
+python3 launch.py nexus   # UK preparedness (default)
+python3 launch.py nexus --profile technical  # Cyber and observatory
+python3 launch.py home    # Configurable clock, weather, agenda and plugins
+```
 
-1. **Security overview**: recent critical PHP advisories, recent CISA KEV additions and source freshness.
-2. **PHP watch**: vendor CVEs, severity and CVSS version, fixed versions, CISA catalog matches and official PHP follow-up announcements.
-3. **Exploited in the wild**: recent CISA Known Exploited Vulnerabilities entries, catalog statistics and vendor-response guidance.
-4. **Observatory**: rotating globe, ISS statistics, earthquakes, solar conditions, clock and local weather.
+**F5 switches between the views**, replacing the current process so the existing systemd service continues to own the dashboard. Press **S** to save home layout edits before switching. The install script includes both views and preserves an existing `home.json` and local agenda on upgrades.
 
-Windows open in a staggered sequence. At seven seconds an ASCII terminal briefing opens, types a short report from the loaded advisory data, then closes at 23 seconds. It displays text; it does not execute shell commands. Automatic rotation continues while public feeds refresh in background threads.
+Nexus uses `config.json` for location. Home uses `home.json` for layout and widgets; the launcher creates it from `home.example.json` on first use. Its weather widget shares the Nexus location unless explicitly overridden. `NEXUS_CONFIG` and `NEXUS_HOME_CONFIG` select alternate config paths (use absolute paths for switching). [Home dashboard setup and plugin API](HOME_DASHBOARD.md).
 
-| Key | Action |
-| --- | --- |
-| 1–4 | Select a workspace and reset its rotation timer |
-| Left / Right | Previous / next workspace |
-| A | Toggle automatic rotation |
-| T | Show or dismiss the terminal briefing |
-| Space | Pause animation and workspace rotation; feeds continue updating |
-| Escape | Close the dashboard |
+## UK-first preparedness
 
-The numbered controls in the header indicate the current workspace. The layout uses fixed windows with animated entry and terminal exit. No calendar integration.
+The default profile rotates through UK status, incident/cyber reporting, local readiness, and the published Doomsday Clock. **F6** switches to the technical profile; **F5** switches to the configurable home dashboard. In the UK profile, **O** opens the selected source in your installed browser; source rows are also clickable.
+
+Official terrorism assessments, weather bulletins, flood warnings, and news reports remain distinct. No combined threat score is calculated. The Doomsday Clock shows the Bulletin of the Atomic Scientists’ published symbolic setting, with its announcement and verification dates. [Sources, local setup and data limitations](UK_PREPAREDNESS.md).
+
+## Technical profile workspaces
+
+The display rotates every 32 seconds through four workspaces:
+
+1. **Security overview**: recent critical PHP counts and one priority advisory.
+2. **PHP watch**: one vendor advisory or PHP.net announcement at a time, advancing every 12 seconds.
+3. **Exploited in the wild**: four readable CISA KEV entries per page, advancing every 12 seconds.
+4. **Observatory**: green wireframe globe with ISS and earthquake markers, local clock/weather, geomagnetic Kp and earthquake counts.
+
+**1–4** select a workspace, **Left/Right** switch workspace, **A** toggles rotation, **T** opens a full-screen read-only briefing, **Space** pauses animation/rotation, and **Escape** quits. Briefing text has a short reveal and blinking cursor; it does not execute commands. Feed refreshes continue in background threads. The bottom controls stay still for readability.
 
 ## Security data
 
@@ -36,7 +43,7 @@ GitHub, CISA and PHP.net feeds refresh every 15, 30 and 15 minutes respectively.
 
 ## Planetary data
 
-The observatory retains the clock, local weather, a globe with Natural Earth coastlines, modelled ISS coordinates, altitude and velocity, global M2.5+ USGS earthquakes in the last 24 hours, and NOAA Kp / solar wind observations. The ISS orbit period is derived from altitude using a circular-orbit approximation.
+The observatory shows the clock, local weather, a globe with Natural Earth coastlines, modelled ISS coordinates, altitude and velocity, global M2.5+ USGS earthquake counts in the last 24 hours, and NOAA Kp observations. Solar wind data continues to be fetched and cached for extensions; the compact status display prioritises Kp.
 
 The globe's camera moves for presentation; markers use the source coordinates. Pulsing earthquake rings are decorative and do not represent real-time seismic waves. ISS coordinates are modelled satellite positions, not a live camera or an overhead-pass prediction.
 
@@ -54,13 +61,13 @@ The globe's camera moves for presentation; markers use the source coordinates. P
 
 Feeds are fetched in background threads and cached locally. Each panel shows the observation age. Failed updates or old observations are marked stale; cached data is not presented as current. NOAA source observations can lag, even when requests succeed. Kp measures geomagnetic activity, not your local chance of seeing an aurora. The USGS feed is a reported-event catalogue, not a complete count of every earthquake worldwide.
 
-No API keys are required. Public feeds do not receive your location; only the local weather request sends the coordinates configured in `config.json` to Open-Meteo.
+No API keys are required. Weather requests send configured coordinates to Open-Meteo. When local flood alerts are enabled, the Environment Agency receives the configured coordinates and search radius. Met Office requests include the selected region. Config files and caches are excluded from Git.
 
 ## Hardware and software
 
 Initially deployed on a Raspberry Pi 2 Model B Rev 1.1, running 32-bit Raspbian 13 with a labwc Wayland desktop and a 1920×1080 HDMI monitor. Rendering targets 12 fps using a 1280×720 canvas, GPU-scaled to the monitor. The original Pi 2 measured about 8 fps with the planetary view; native 1080p software rendering was about 4 fps. If SDL scaling is unavailable, the app falls back to native fullscreen rendering.
 
-Requires Python 3 and Pygame 2.6 or newer. On Raspberry Pi OS:
+Requires Python 3.9+ and Pygame 2.6 or newer. On Raspberry Pi OS:
 
 ```bash
 sudo apt update
@@ -137,7 +144,7 @@ For a complete rollback, check out the desired Git commit and rerun the installe
 ## Development checks
 
 ```bash
-python3 -m py_compile dashboard.py feeds.py security.py security_ui.py workspaces.py
+python3 -m compileall -q dashboard.py feeds.py security.py security_ui.py workspaces.py preparedness.py preparedness_ui.py launch.py terminal_theme.py pi_dashboard plugins
 python3 -m unittest discover -s tests -v
 sh -n scripts/install.sh
 ```
@@ -151,8 +158,36 @@ Weather conditions use the WMO codes supplied by Open-Meteo. Data attribution is
 For visual QA on the Pi, render a workspace without changing the monitor or making network requests:
 
 ```bash
-python3 ~/dashboard/dashboard.py --snapshot /tmp/php-watch.png --workspace 2 --age 3
-python3 ~/dashboard/dashboard.py --snapshot /tmp/terminal.png --workspace 1 --age 19
+python3 ~/dashboard/dashboard.py --profile technical --snapshot /tmp/php-watch.png --workspace 2 --age 3
+python3 ~/dashboard/dashboard.py --profile technical --snapshot /tmp/observatory.png --workspace 4 --age 3
 ```
 
-`--workspace` is 1–4. `--age` selects the point in the workspace animation. Previews use the installed config and local caches; empty feeds show a connecting state.
+`--workspace` is 1–4. `--age` selects the point in the workspace rotation. Previews use the installed config and local caches; empty feeds show a connecting state.
+
+## Retro display validation
+
+The new layouts have been rendered at 1280×720 with SDL's dummy driver and checked locally. Previous Pi frame-rate figures above describe the old design; the retro layout and F5 switching still require an on-device check. No remote Pi deployment is performed by editing this repository.
+
+`assets/fonts/ShareTechMono-Regular.ttf` comes from Google Fonts' Share Tech Mono distribution and is licensed under the included SIL Open Font License (`assets/fonts/OFL.txt`). Colours and font selection are shared in `terminal_theme.py`.
+
+The default renderer uses the bundled Share Tech Mono font. The optional `bitmap_font.py` renderer and public-domain IBM-derived `font8x8` data remain available for custom widgets (see `assets/fonts/FONT8X8-LICENSE.txt`). Home widgets also accept a custom TTF via their theme.
+
+## Automatic Pi updates
+
+After installing, run `sh scripts/enable-auto-update.sh` as the display user.
+The user timer checks the public `main` branch every five minutes (with up to
+30 seconds of jitter), validates the revision using the test suite, then installs
+and restarts the displays. No GitHub credentials or sudo are required. Local
+`config.json`, `home.json`, agenda data and caches are preserved. The preceding
+installation is stored privately in `~/.local/state/nexus-updater/previous` and
+restored if installation or the initial service health check fails. There is a
+brief display interruption during installation; the check is process health,
+not a physical screen inspection. Upstream code is trusted to run as this user.
+The timer runs while the user systemd manager is running (normally the desktop
+session); it does not independently enable lingering.
+
+Check with `systemctl --user status nexus-update.timer nexus-update.service`.
+Disable with `systemctl --user disable --now nexus-update.timer`.
+Run immediately with `systemctl --user start nexus-update.service`.
+The updater itself is installed explicitly by the enable script; rerun that
+script when updater changes are announced.

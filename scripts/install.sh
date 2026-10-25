@@ -22,9 +22,35 @@ if [ -f "$DEST/dashboard.py" ]; then
 fi
 cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
 cp "$SOURCE/feeds.py" "$DEST/feeds.py"
-cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$DEST/"
+cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$SOURCE/preparedness.py" "$SOURCE/preparedness_ui.py" "$DEST/"
+cp "$SOURCE/live_telemetry.py" "$DEST/"
+cp "$SOURCE/animated_visuals.py" "$DEST/"
+cp "$SOURCE/observatory_globe.py" "$DEST/"
+cp "$SOURCE/uk_map.py" "$DEST/"
+mkdir -p "$DEST/data"
+cp "$SOURCE/data/uk-map.geojson" "$DEST/data/"
+cp "$SOURCE/status_summary.py" "$DEST/"
+cp "$SOURCE/companion.py" "$DEST/"
+cp "$SOURCE/scripts/enable-companion-boot.sh" "$DEST/"
+cp "$SOURCE/deploy/nexus-companion.service" "$HOME/.config/systemd/user/"
+cp "$SOURCE/launch.py" "$SOURCE/terminal_theme.py" "$SOURCE/bitmap_font.py" "$SOURCE/cyber_graphics.py" "$SOURCE/home.example.json" "$DEST/"
+cp -R "$SOURCE/pi_dashboard" "$SOURCE/plugins" "$SOURCE/assets" "$DEST/"
 mkdir -p "$DEST/data"
 cp "$SOURCE/data/land.json" "$DEST/data/land.json"
+cp "$SOURCE/data/doomsday-clock.json" "$DEST/data/doomsday-clock.json"
+for name in agenda.json agenda.example.json metric.json; do
+    if [ ! -f "$DEST/data/$name" ]; then
+        cp "$SOURCE/data/$name" "$DEST/data/$name"
+    fi
+done
+# Never overwrite an installed layout during an upgrade.
+if [ ! -f "$DEST/home.json" ]; then
+    if [ -f "$SOURCE/home.json" ]; then
+        cp "$SOURCE/home.json" "$DEST/home.json"
+    else
+        cp "$SOURCE/home.example.json" "$DEST/home.json"
+    fi
+fi
 cp "$SOURCE/config.json" "$DEST/config.json"
 chmod 600 "$DEST/config.json"
 mkdir -p "$DEST/.cache"

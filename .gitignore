@@ -1,8 +1,11 @@
 config.json
+home.json
+*.tmp
 .cache/
 __pycache__/
 *.py[cod]
 *.log
 preview*.png
+preview*.gif
 .DS_Store
 .venv/
