@@ -126,6 +126,29 @@ class PreparednessTests(unittest.TestCase):
             invalid.write_text('{}')
             self.assertIsNone(load_doomsday_setting(invalid))
 
+    def test_transcript_history_holds_position_and_pause_is_stable(self):
+        calls = []
+        ui = SimpleNamespace(text=lambda *args: calls.append(args), line=lambda *args: None,
+                             panel=lambda *args: None, TEXT='green', DIM='grey',
+                             TEAL='green', AMBER='orange', RED='red')
+        view = PreparednessDesktop(ui, SimpleNamespace())
+        view.stream(10, {}, {}, 0)
+        view.scroll(3)
+        calls.clear()
+        view.stream(11, {}, {}, 0)
+        first = calls[:]
+        calls.clear()
+        view.stream(40, {}, {}, 0)
+        self.assertEqual(calls, first)
+        view.scroll(-10000)
+        self.assertEqual(view.scroll_offset, 0)
+        calls.clear()
+        view.stream(12, {}, {}, 0)
+        paused = calls[:]
+        calls.clear()
+        view.stream(12, {}, {}, 0)
+        self.assertEqual(calls, paused)
+
     def test_all_uk_screens_render_without_network(self):
         with tempfile.TemporaryDirectory() as directory:
             env = {**os.environ, 'NEXUS_CONFIG': str(ROOT/'config.example.json'), 'NEXUS_CACHE': directory}

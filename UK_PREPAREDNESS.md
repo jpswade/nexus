@@ -62,3 +62,13 @@ Snapshots perform no network access; they use cache files and show a connecting 
 The published setting lives in `data/doomsday-clock.json`, with announcement date, verification date, publisher and original statement URL. It is editorially maintained, not automatically scraped. On a new Bulletin announcement, verify the original source and update that record; the installer deploys it with the app. The display shows the verification date rather than implying live monitoring. A malformed or missing record shows unavailable instead of a fabricated number.
 
 Source: [2026 Doomsday Clock statement](https://thebulletin.org/doomsday-clock/2026-statement/). The clock is a symbolic assessment of global risks, separate from the UK national terrorism assessment.
+
+### Briefing stream
+
+All four UK workspaces now pair the main assessment with weather and local flood
+readouts plus a source-labelled, type-on briefing transcript. The transcript replays
+headlines and household guidance; replay is not a new event or a new publication.
+It continues across automatic workspace changes. Space pauses animation; Page Up
+and Page Down (or the mouse wheel) browse the transcript, and End returns to replay.
+Click a headline to open its original source. Source check times and stale status
+remain visible. The Doomsday Clock remains the fixed published setting.

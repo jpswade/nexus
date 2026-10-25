@@ -310,6 +310,8 @@ while running:
         elif event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and ARGS.profile=='uk':
             url=prepared_ui.clicked_url(((event.pos[0]-OX)/S,(event.pos[1]-OY)/S))
             if url:open_source(url)
+        elif event.type==pygame.MOUSEWHEEL and ARGS.profile=='uk':
+            prepared_ui.scroll(event.y*3)
         elif event.type==pygame.KEYDOWN:
             if event.key==pygame.K_SPACE:
                 paused=not paused
@@ -330,6 +332,9 @@ while running:
                 switch_view('nexus')
             elif event.key==pygame.K_o and ARGS.profile=='uk':
                 open_source(prepared_ui.active_url)
+            elif event.key in (pygame.K_PAGEUP,pygame.K_PAGEDOWN,pygame.K_END) and ARGS.profile=='uk':
+                if event.key==pygame.K_END:prepared_ui.scroll_offset=0
+                else:prepared_ui.scroll(8 if event.key==pygame.K_PAGEUP else -8)
             elif event.key==pygame.K_a:
                 cycle.automatic=not cycle.automatic
                 cycle.since=input_time
@@ -382,7 +387,7 @@ while running:
     # Briefings replace the main view instead of covering it with a popup.
     show_brief=manual_terminal and not terminal_hidden
     if ARGS.profile=='uk':
-        prepared_ui.draw(workspace,age,uk_data,uk_errors,epoch)
+        prepared_ui.draw(workspace,age,uk_data,uk_errors,epoch,stream_age=t)
     elif show_brief:
         desktop.terminal(workspace,briefing_age,security_data,security_errors,epoch,
                          (workspace,cycle.since,manual_terminal),forced=True)

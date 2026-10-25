@@ -50,7 +50,7 @@ class PreparednessDesktop:
 
     def source(self, label, url, y=588, primary=True):
         self.u.text(label+' / OPEN SOURCE >', 48, y, 19, self.u.TEAL)
-        self.links.append(((42, y-4, 1190, 30), url))
+        self.links.append(((42, y-4, 770, 30), url))
         if primary:
             self.active_url = url
 
@@ -65,117 +65,146 @@ class PreparednessDesktop:
                 return url
         return None
 
-    def draw(self, index, age, data, errors, now):
+    def scroll(self, lines):
+        if not getattr(self, 'scroll_offset', 0):
+            self.history_cursor = getattr(self, 'stream_cursor', 16)
+        self.scroll_offset = max(0, min(getattr(self, 'stream_length', 0)-1,
+                                        getattr(self, 'scroll_offset', 0)+lines))
+
+    def paragraphs(self, value, x, y, width=65, size=22, limit=3, color=None):
+        rows = textwrap.wrap(str(value), width) or ['']
+        if len(rows) > limit:
+            rows = rows[:limit]
+            rows[-1] = rows[-1].rstrip(' .')+'...'
+        for n, row in enumerate(rows):
+            self.u.text(row, x, y+n*(size+5), size, color or self.u.TEXT)
+
+    def stream(self, age, data, errors, now):
+        """Replay source headlines; motion changes presentation, never source facts."""
+        u = self.u
+        u.panel(846, 105, 406, 551, 'PUBLIC SOURCE STREAM', ' ')
+        rows = []
+        for name, label in [('weather', 'MET OFFICE'), ('floods', 'ENV. AGENCY'),
+                            ('ncsc', 'NCSC / PUBLICATION'), ('news', 'BBC / MEDIA REPORT')]:
+            sample = data.get(name, {})
+            items = sample.get('items', [])[:6]
+            state = source_status(name, data, errors, now)
+            rows.append((label, u.TEAL, LINKS.get(name, LINKS['prepare'])))
+            rows.append((state, u.DIM, None))
+            if not items:
+                rows.append(('No items returned' if sample else 'Waiting for source...', u.DIM, None))
+            for item in items:
+                rows.append((label, u.TEAL, item.get('url')))
+                published = item.get('published')
+                if published:
+                    stamp = dt.datetime.fromtimestamp(published, dt.timezone.utc).strftime('%d %b %H:%M UTC')
+                    rows.append((stamp, u.DIM, None))
+                for row in textwrap.wrap(item['title'], 37):
+                    rows.append((row, u.TEXT, item.get('url')))
+                rows.append(('', u.DIM, None))
+        rows.append(('PREPARE / HOUSEHOLD GUIDANCE', u.TEAL, LINKS['prepare']))
+        for tip in PREPARE_TIPS:
+            rows.extend((row, u.TEXT, LINKS['prepare']) for row in textwrap.wrap(tip, 37))
+            rows.append(('', u.DIM, None))
+        self.stream_length = len(rows)
+        # Begin with a populated transcript, then reveal a line every 0.8 s.
+        progress = max(0., age)*1.25
+        cursor = min(len(rows), 16+int(progress))
+        if cursor == len(rows):
+            cursor = 16+int(progress) % max(1, len(rows)-15)
+        self.stream_cursor = cursor
+        if getattr(self, 'scroll_offset', 0):
+            cursor = min(len(rows), getattr(self, 'history_cursor', cursor))
+        offset = min(getattr(self, 'scroll_offset', 0), max(0, cursor-1))
+        end = cursor-offset
+        start = max(0, end-18)
+        for n, (value, colour, url) in enumerate(rows[start:end]):
+            if n == end-start-1 and not offset:
+                value = value[:int((progress % 1)*max(1, len(value)))]+('_' if int(age*2)%2 else '')
+            y = 154+n*25
+            u.text(value, 860, y, 18, colour)
+            if url:
+                self.links.append(((856, y, 390, 24), url))
+        u.line((860, 613), (1236, 613), u.DIM)
+        u.text('HISTORY' if offset else 'AUTO REPLAY / SOURCE HEADLINES', 860, 624, 16, u.TEAL)
+        u.text('PGUP / PGDN / END', 860, 645, 12, u.DIM)
+
+    def draw(self, index, age, data, errors, now, stream_age=None):
         u = self.u
         self.links = []
         self.active_url = LINKS['prepare']
-        u.panel(28, 105, 1224, 551, f'0{index+1} / '+NAMES[index].upper(), 'INDEPENDENT / PUBLIC SOURCES')
-        # Animation belongs to the terminal chrome, never to the assessment.
+        u.panel(28, 105, 802, 551, f'0{index+1} / '+NAMES[index].upper(), 'UK / PUBLIC SOURCES')
         for i in range(18):
             height=3+int(7*(1+math.sin(age*1.6+i*.65)))
             u.line((775+i*8,94),(775+i*8,94-height),u.TEAL)
         u.text('DISPLAY SYNC',930,80,14,u.DIM)
+        self.stream(age if stream_age is None else stream_age, data, errors, now)
+        # Common secondary readouts keep the wider situation in every workspace.
+        u.line((48, 502), (810, 502), u.DIM)
+        u.text('WEATHER / '+getattr(self.feeds, 'weather_scope', 'UK').upper(), 48, 516, 17, u.TEAL)
+        weather = data.get('weather', {})
+        warnings = weather.get('items', [])
+        title = warnings[int(age/12) % len(warnings)]['title'] if warnings else ('No bulletins returned' if weather else 'Source unavailable')
+        self.paragraphs(title, 48, 542, width=36, size=19, limit=3)
+        u.line((440, 516), (440, 624), u.DIM)
+        u.text('LOCAL / '+getattr(self.feeds, 'flood_scope', 'ENGLAND').upper()[:32], 456, 516, 17, u.TEAL)
+        flood = data.get('floods')
+        count = len(flood.get('items', [])) if flood else None
+        u.text(f'{count} FLOOD ALERTS / WARNINGS' if count is not None else 'FLOOD SOURCE UNAVAILABLE', 456, 542, 21, u.AMBER)
+        self.paragraphs('England coverage. Check warning areas and validity at source.', 456, 575, width=35, size=18, limit=2, color=u.DIM)
+        u.text('MET '+source_status('weather', data, errors, now), 48, 634, 13, u.DIM)
+        u.text('EA '+source_status('floods', data, errors, now), 456, 634, 13, u.DIM)
         if index == 0:
             sample = data.get('threat')
             stale = sample and ('threat' in errors or now-sample['fetched'] > MAX_AGES['threat'])
             level = sample['level'].upper() if sample else 'UNAVAILABLE'
-            position = LEVELS.index(level.lower())+1 if level.lower() in LEVELS else None
-            colour = u.AMBER if sample else u.DIM
-            u.text('UK TERRORISM THREAT / '+('LAST KNOWN ASSESSMENT' if stale else 'NATIONAL ASSESSMENT'), 48, 162, 23, u.DIM)
-            # A stable hero word, almost three times the former size.
-            u.text(level, 64, 210, 112, colour)
-            meanings = {
-                'LOW': 'AN ATTACK IS HIGHLY UNLIKELY',
-                'MODERATE': 'AN ATTACK IS POSSIBLE BUT NOT LIKELY',
-                'SUBSTANTIAL': 'AN ATTACK IS LIKELY',
-                'SEVERE': 'AN ATTACK IS HIGHLY LIKELY',
-                'CRITICAL': 'AN ATTACK IS HIGHLY LIKELY IN THE NEAR FUTURE',
-            }
-            u.text(meanings.get(level, 'AWAITING AN OFFICIAL ASSESSMENT'), 64, 328, 23, colour)
-            # Brackets unfold on entry. The selected level never cycles or flashes.
-            extent = min(1., max(0., age)/1.2)
-            trace = 64+int((age % 8)/8*710)
-            u.line((trace,194),(trace+48,194),colour,2)
-            for x, direction in ((48, 1), (850, -1)):
-                for y, dy in ((200, 1), (320, -1)):
-                    u.line((x,y),(x+direction*28*extent,y),colour,2)
-                    u.line((x,y),(x,y+dy*24*extent),colour,2)
-            draw_orb(u, 1060, 296, 104, age)
-            u.text('TOPOLOGY / VISUAL FX', 945, 451, 16, u.DIM)
-            for i, name in enumerate(LEVELS, 1):
-                x = 48+(i-1)*163
-                selected = i == position
-                u.text(('>> ' if selected else '   ')+name.upper(), x, 375, 18, colour if selected else u.DIM)
-                u.line((x,405),(x+140,405),colour if selected else u.DIM,4 if selected else 1)
-            self.status('threat', data, errors, now, 431)
-            self.source('GOV.UK / JTAC & MI5', LINKS['threat'], 456)
-            u.line((48,490),(1230,490))
-            u.text('MET OFFICE / '+self.feeds.weather_scope.upper(),48,506,18,u.DIM)
-            weather = data.get('weather')
-            rows = weather.get('items', []) if weather else []
-            weather_url = LINKS['weather']
-            if rows:
-                row = rows[int(now/12) % len(rows)]
-                self.wrap(row['title'], 535, size=22, width=100, lines=2,
-                          color=u.RED if row['colour']=='red' else u.AMBER)
-                weather_url = row['url']
-            else:
-                self.wrap('No warning bulletins returned' if weather else 'Weather warnings unavailable',535,size=22,lines=2)
-            self.source('WEATHER / CHECK AREA & VALIDITY',weather_url,598,primary=False)
-            self.status('weather',data,errors,now)
+            u.text('UK TERRORISM / '+('LAST KNOWN ASSESSMENT' if stale else 'NATIONAL ASSESSMENT'), 48, 160, 20, u.DIM)
+            # SUBSTANTIAL is the widest official level; keep its full word visible.
+            u.text(level, 48, 198, 112, u.AMBER)
+            meanings = {'LOW':'AN ATTACK IS HIGHLY UNLIKELY', 'MODERATE':'AN ATTACK IS POSSIBLE BUT NOT LIKELY',
+                        'SUBSTANTIAL':'AN ATTACK IS LIKELY', 'SEVERE':'AN ATTACK IS HIGHLY LIKELY',
+                        'CRITICAL':'AN ATTACK IS HIGHLY LIKELY IN THE NEAR FUTURE'}
+            self.paragraphs(meanings.get(level, 'AWAITING AN OFFICIAL ASSESSMENT'),48,317,64,21,2,u.AMBER)
+            for i, name in enumerate(LEVELS):
+                selected = name == level.lower()
+                x = 48+i*152
+                u.text(('>> ' if selected else '   ')+name.upper(),x,365,15,u.AMBER if selected else u.DIM)
+                u.line((x,389),(x+138,389),u.AMBER if selected else u.DIM,3 if selected else 1)
+            self.status('threat',data,errors,now,411)
+            self.source('GOV.UK / JTAC & MI5',LINKS['threat'],454)
+            draw_orb(u, 742, 445, 30, age)
         elif index == 1:
-            name = 'ncsc' if int(age/12) % 2 == 0 else 'news'
-            label = 'NCSC / OFFICIAL PUBLICATION' if name == 'ncsc' else 'BBC NEWS / MEDIA REPORT'
-            u.text(label, 48, 164, 25, u.DIM)
-            rows = data.get(name, {}).get('items', [])
-            if rows:
-                row = rows[int(now/24) % len(rows)]
-                self.wrap(row['title'], 222, size=32, width=66, lines=4)
-                if row.get('published'):
-                    published = dt.datetime.fromtimestamp(row['published'], dt.timezone.utc).strftime('%d %b %Y %H:%M UTC')
-                    u.text('PUBLISHED '+published, 48, 405, 21, u.DIM)
-                self.active_url = row['url']
-            else:
-                self.wrap('No matching stories in this feed' if name in data else 'Source unavailable / retrying in background', 240, size=30)
-                self.active_url = LINKS[name]
-            self.wrap('Publication is not proof of an ongoing attack or a change to the national threat level.', 475, size=22, width=94, lines=2, color=u.DIM)
-            self.source(label, self.active_url)
-            self.status(name, data, errors, now)
+            u.text('INCIDENT / CYBER / PUBLICATION DESK',48,160,22,u.TEAL)
+            y = 202
+            for name, label in [('ncsc','NCSC / OFFICIAL PUBLICATION'),('news','BBC / MEDIA REPORT')]:
+                items = data.get(name, {}).get('items', [])
+                item = items[int(age/16)%len(items)] if items else None
+                u.text(label,48,y,18,u.AMBER)
+                self.paragraphs(item['title'] if item else 'Source unavailable / no matching stories',48,y+28,63,23,3)
+                if item:
+                    self.links.append(((48,y+25,730,86),item['url']))
+                    self.active_url=item['url']
+                y += 134
+            u.text('MEDIA REPORTS DO NOT CHANGE THE OFFICIAL THREAT LEVEL',48,479,16,u.DIM)
         elif index == 2:
-            u.text('ENVIRONMENT AGENCY / '+self.feeds.flood_scope.upper(), 48, 159, 22, u.DIM)
-            sample = data.get('floods')
-            rows = sample.get('items', []) if sample else []
-            if rows:
-                row = rows[int(now/12) % len(rows)]
-                u.text(f'{len(rows)} ALERTS / WARNINGS RETURNED', 48, 201, 34, u.AMBER)
-                u.text(row['label'].upper(), 48, 260, 28, u.RED if row['severity'] == 1 else u.AMBER)
-                self.wrap(row['title'], 304, lines=2)
-                u.text('SOURCE UPDATE '+row['updated'], 48, 390, 20, u.DIM)
-                self.active_url = row['url']
-            else:
-                message = 'No alerts returned by this feed' if sample else 'Local flood status unavailable'
-                self.wrap(message, 211, size=32, lines=2)
-                self.wrap('Flood coverage is England only. An empty feed is not an all-clear.', 320, size=23, width=91, lines=2, color=u.DIM)
-                self.active_url = 'https://www.gov.uk/check-flooding'
-            u.line((48, 442), (1230, 442))
-            self.wrap(PREPARE_TIPS[int(now/30) % len(PREPARE_TIPS)], 465, size=24, width=88, lines=2)
-            self.source('PREPARE / HOUSEHOLD GUIDANCE', LINKS['prepare'], 545, primary=False)
-            self.source('FLOOD DETAILS', self.active_url, 583)
-            if 'floods' in self.feeds.urls:
-                self.status('floods', data, errors, now)
-            else:
-                u.text('USE YOUR NATIONAL FLOOD WARNING SERVICE', 48, 624, 18, u.AMBER)
+            u.text('LOCAL READINESS / '+getattr(self.feeds,'flood_scope','ENGLAND').upper(),48,160,20,u.TEAL)
+            u.text(str(count) if count is not None else '--',48,192,90,u.AMBER)
+            u.text('FLOOD ALERTS / WARNINGS RETURNED',190,220,25,u.TEXT)
+            items = flood.get('items',[]) if flood else []
+            item = items[int(age/12)%len(items)] if items else None
+            self.paragraphs(item['title'] if item else 'An empty feed is not an all-clear. Check your local flood risk.',48,296,65,22,2)
+            if item:
+                self.active_url=item['url']
+                self.links.append(((48,290,750,60),item['url']))
+            u.text('HOUSEHOLD ACTION / PREPARE',48,368,19,u.TEAL)
+            self.paragraphs(PREPARE_TIPS[int(age/12)%len(PREPARE_TIPS)],48,398,60,22,3)
+            self.links.append(((48,368,750,120),LINKS['prepare']))
         else:
             setting = self.doomsday
-            u.text('DOOMSDAY CLOCK / PUBLISHED SETTING', 48, 162, 24, u.DIM)
-            u.text(str(setting['seconds_to_midnight']) if setting else '--', 48, 198, 148, u.AMBER)
-            u.text('SECONDS TO MIDNIGHT', 48, 355, 36, u.TEXT)
-            draw_orb(u, 1070, 283, 100, age)
-            u.text('VISUAL FX', 1020, 437, 16, u.DIM)
-            if setting:
-                announced = dt.date.fromisoformat(setting['announced']).strftime('%d %B %Y').upper()
-                u.text('ANNOUNCED '+announced, 48, 412, 23, u.DIM)
-            u.text('SYMBOLIC GLOBAL RISK ASSESSMENT', 48, 460, 24, u.TEXT)
-            self.wrap('Set by the Bulletin of the Atomic Scientists. The published value stays fixed until the Bulletin changes it.', 501, size=22, width=90, lines=2)
-            self.source('BULLETIN OF THE ATOMIC SCIENTISTS', setting['url'] if setting else 'https://thebulletin.org/doomsday-clock/')
-            u.text('SOURCE VERIFIED '+setting['verified']+' / EDITORIALLY MAINTAINED' if setting else 'SETTING UNAVAILABLE / CHECK ORIGINAL SOURCE', 48, 624, 18, u.DIM)
+            u.text('DOOMSDAY CLOCK / PUBLISHED SETTING',48,160,22,u.DIM)
+            u.text(str(setting['seconds_to_midnight']) if setting else '--',48,188,148,u.AMBER)
+            u.text('SECONDS TO MIDNIGHT',48,340,31,u.TEXT)
+            draw_orb(u, 650, 287, 82, age)
+            u.text('VISUAL FX',610,407,14,u.DIM)
+            self.paragraphs('Symbolic global risk assessment. Set by the Bulletin of the Atomic Scientists.',48,387,45,20,3)
+            self.source('BULLETIN / '+(setting['announced'] if setting else 'UNAVAILABLE'),setting['url'] if setting else 'https://thebulletin.org/doomsday-clock/',466)
