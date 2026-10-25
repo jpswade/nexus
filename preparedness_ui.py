@@ -6,6 +6,7 @@ from pathlib import Path
 import math
 from cyber_graphics import draw_orb
 from status_summary import summary
+from alert_state import AlertState
 from preparedness import LINKS, MAX_AGES, LEVELS, source_status
 
 NAMES = ('UK situation console', 'Incident & cyber watch', 'UK situation map', 'Minutes to midnight')
@@ -37,6 +38,7 @@ class PreparednessDesktop:
     def __init__(self, ui, feeds, location=None):
         self.u = ui
         self.feeds = feeds
+        self.alerts = AlertState()
         self.links = []
         self.active_url = LINKS['prepare']
         self.doomsday = load_doomsday_setting()
@@ -240,3 +242,23 @@ class PreparednessDesktop:
         self.links.append(((28,565,280,91),setting['url'] if setting else 'https://thebulletin.org/doomsday-clock/'))
         if index==3:self.active_url=setting['url'] if setting else 'https://thebulletin.org/doomsday-clock/'
         self.stream(age if stream_age is None else stream_age,data,errors,now)
+
+    def alert_rail(self, age, data, errors, now):
+        alerts = self.alerts.update(data, errors, now)
+        if not alerts:
+            return False
+        u = self.u
+        item = alerts[int(age/8) % len(alerts)]
+        colour = u.RED if item['rank'] >= 5 else u.AMBER
+        # Only the border pulses; the words never blink off.
+        pulse = colour if int(age) % 2 else u.DIM
+        u.line((28,663),(1252,663),pulse,3)
+        u.line((28,718),(1252,718),pulse,3)
+        prefix = 'LAST KNOWN / STALE' if item['stale'] else ('NEW WARNING' if item['new'] else 'WARNING WATCH')
+        u.text(f"! {prefix} / {len(alerts)} LISTED",40,668,19,colour)
+        u.text(textwrap.shorten(item['title'],width=83,placeholder='...'),450,668,19,u.TEXT)
+        u.text(item['source'].upper()+' / '+item['detail'],40,696,14,colour)
+        u.text('O OPEN WARNING / '+str(int(age/8)%len(alerts)+1)+' OF '+str(len(alerts)),1236,696,14,u.DIM,True)
+        self.active_url = item['url']
+        self.links.append(((28,663,1224,57),item['url']))
+        return True

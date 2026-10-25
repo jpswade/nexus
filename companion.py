@@ -12,6 +12,7 @@ from preparedness import PreparednessFeeds, MAX_AGES
 from preparedness_ui import load_doomsday_setting
 from terminal_theme import font, PALETTE
 from status_summary import summary
+from alert_state import AlertState
 
 ROOT = Path(__file__).resolve().parent
 
@@ -63,6 +64,7 @@ class Companion:
         self.surface = pygame.Surface((480, 320), depth=16, masks=(0xf800, 0x07e0, 0x001f, 0))
         self.fonts = {}
         self.setting = load_doomsday_setting()
+        self.alerts = AlertState()
 
     def text(self, value, x, y, size=18, colour='text', width=456):
         size = int(size)
@@ -127,10 +129,14 @@ class Companion:
         stale = not sample or now-sample['fetched'] > MAX_AGES[name]
         items = sample.get('items', []) if sample else []
         item = items[int(age/30)%len(items)] if items else None
-        self.text(label+(' [STALE]' if stale else '')+' / '+(item['title'] if item else 'No publication available'),12,272,17,'muted')
-        pygame.draw.line(self.surface, PALETTE['border'], (12, 310), (468, 310))
-        x = 12+int(age%15/15*440)
-        pygame.draw.line(self.surface, PALETTE['accent'], (x, 310), (min(x+16,468), 310), 2)
+        alerts = self.alerts.update(data, (), now)
+        if alerts:
+            alert = alerts[int(age/8)%len(alerts)]
+            self.text(('STALE / ' if alert['stale'] else 'WARNING / ')+alert['title'],12,270,18,'error')
+            self.text(str(len(alerts))+' LISTED / '+alert['detail'],12,292,12,'error')
+            pygame.draw.rect(self.surface, PALETTE['error' if int(age)%2 else 'muted'], (2,260,476,58),2)
+        else:
+            self.text(label+(' [STALE]' if stale else '')+' / '+(item['title'] if item else 'No publication available'),12,272,17,'muted')
         return self.surface
 
 
