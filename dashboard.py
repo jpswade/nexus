@@ -100,6 +100,7 @@ from security import SecurityFeeds
 from security_ui import SecurityDesktop
 from workspaces import WorkspaceCycle, NAMES
 from terminal_theme import PALETTE, font as terminal_font, switch_view
+from bitmap_font import ascii_box
 from types import SimpleNamespace
 from preparedness import PreparednessFeeds
 from preparedness_ui import PreparednessDesktop, NAMES as UK_NAMES
@@ -150,7 +151,7 @@ def text(value,x,y,size=12,color=TEXT,right=False):
     color=tuple(pygame.Color(color))
     key=(value,size,color)
     if key not in labels:
-        if size not in fonts: fonts[size]=terminal_font(max(16,size)*S)
+        if size not in fonts: fonts[size]=terminal_font(max(8,size)*S)
         labels[key]=fonts[size].render(value,True,color)
         if len(labels)>450: labels.popitem(last=False)
     image=labels[key]
@@ -166,14 +167,14 @@ def mono(value,x,y,size=12,color=(185,231,207)):
 
 def bevel(x,y,w,h,fill=PANEL,sunken=False):
     pygame.draw.rect(screen,PANEL,rect(x,y,w,h))
-    pygame.draw.rect(screen,LINE,rect(x,y,w,h),max(1,round(S)))
+    ascii_box(screen,rect(x,y,w,h),LINE)
 
 def panel(x,y,w,h,label,tag):
     bevel(x,y,w,h)
-    text(label.upper(),x+16,y+8,18,TEXT)
+    text("[ "+label.upper()+" ]",x+16,y+15,18,TEXT)
     # Narrow panels reserve the heading for the section name.
-    if w>650:text(tag.upper(),x+w-16,y+10,16,DIM,True)
-    line((x+12,y+34),(x+w-12,y+34),LINE)
+    if w>650:text(tag.upper(),x+w-16,y+17,16,DIM,True)
+    text("-"*max(1,int((w-32)/8)),x+16,y+38,16,LINE)
 
 def bar(x,y,w,value,color):
     bevel(x,y,w,7,(176,182,180),True)
@@ -206,7 +207,7 @@ grid += [[vector(lon,lat) for lat in range(-90,91,5)] for lon in range(-180,180,
 
 screen.fill(BG)
 # Clean black background: no scanlines or blur.
-bevel(28,672,1224,29,(209,212,209))
+bevel(28,660,1224,60)
 background=screen.copy()
 running=True
 paused=False
@@ -363,10 +364,16 @@ while running:
         return ('STALE / ' if stale else 'OBS / ')+age_label(age).upper()
 
     screen.blit(background,(0,0))
-    text('N E X U S',28,16,36,TEXT)
-    text(NAMES[workspace].upper(),260,27,22,DIM)
+    logo = ["#   # ##### #   # #   #  ####",
+            "##  # #      # #  #   # #    ",
+            "# # # ####    #   #   #  ### ",
+            "#  ## #      # #  #   #     #",
+            "#   # ##### #   #  ###  #### "]
+    for row, value in enumerate(logo):text(value,28,8+row*10,10,TEXT)
+    text('SYS> '+NAMES[workspace].upper(),300,27,22,DIM)
     text(now.strftime('%H:%M:%S'),1252,18,32,TEXT,True)
     text(' '.join(f'[{i+1}]' if i==workspace else f' {i+1} ' for i in range(4)),28,64,20,TEXT)
+    text('CMD> _' if int(epoch*2)%2 else 'CMD>',680,64,18,DIM)
     mode=f'AUTO / {max(0,int(cycle.duration-age))}s' if cycle.automatic else 'MANUAL'
     text(mode,420,64,20,DIM)
     count=len(uk_data) if ARGS.profile=='uk' else len(feeds)+len(security_data)

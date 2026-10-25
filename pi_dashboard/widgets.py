@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pygame
 from terminal_theme import font as terminal_font
+from bitmap_font import ascii_box
 
 LOG = logging.getLogger(__name__)
 
@@ -50,9 +51,9 @@ class Widget:
 
     def panel(self, surface):
         surface.fill(self.theme["panel"])
-        pygame.draw.rect(surface, self.theme["border"], surface.get_rect(), 1)
-        self.text(surface, self.spec.get("title", self.spec["type"]).upper(), (22, 14), 23, "accent")
-        pygame.draw.line(surface, self.theme["border"], (22, 43), (surface.get_width()-22, 43))
+        ascii_box(surface, surface.get_rect(), self.theme["border"])
+        self.text(surface, "[ "+self.spec.get("title", self.spec["type"]).upper()+" ]", (22, 17), 20, "accent")
+        self.text(surface, "-"*max(1, (surface.get_width()-44)//8), (22, 40), 16, "border")
 
     def draw(self, surface, now):
         self.panel(surface)
@@ -62,7 +63,7 @@ class Clock(Widget):
     def draw(self, surface, now):
         self.panel(surface)
         size = min(surface.get_height() * .48, surface.get_width() * .24)
-        self.text(surface, now.strftime(self.options.get("format", "%H:%M")), (20, 48), size)
+        self.text(surface, now.strftime(self.options.get("format", "%H:%M")), (20, 60), size)
         self.text(surface, now.strftime(self.options.get("date_format", "%A, %d %B %Y")),
                   (24, surface.get_height() - 48), 27, "accent")
 
@@ -70,7 +71,7 @@ class Clock(Widget):
 class Text(Widget):
     def draw(self, surface, now):
         self.panel(surface)
-        y = 52
+        y = 60
         size = self.options.get("size", 26)
         # Word wrapping also respects explicit newlines.
         for paragraph in self.options.get("text", "Edit this widget in config.json").split("\n"):
@@ -191,7 +192,7 @@ class Weather(BackgroundWidget):
             self.text(surface, "Set your location", (22, 60), 32)
             self.text(surface, "Add latitude + longitude in config", (22, 105), 20, "muted")
         elif data:
-            self.text(surface, data["temperature"], (20, 48), 76, "accent")
+            self.text(surface, data["temperature"], (20, 60), 64, "accent")
             self.text(surface, data["description"], (22, 123), 28)
             self.text(surface, f'Feels {data["feels"]}  /  Wind {data["wind"]}', (22, 159), 21, "muted")
         else:
@@ -254,7 +255,7 @@ class Countdown(Widget):
         if days < 0 and interval > 0:
             days %= interval
         label = "Today" if days == 0 else f"{days} days" if days > 0 else f"{abs(days)} days ago"
-        self.text(surface, label, (22, 52), 48, "accent")
+        self.text(surface, label, (22, 60), 48, "accent")
         self.text(surface, self.options.get("label", "Next event"), (22, 109), 25)
 
 
@@ -267,7 +268,7 @@ class System(Widget):
             value = f"Load  {load:.2f}"
         except (AttributeError, OSError):
             value = "Load unavailable"
-        self.text(surface, value, (22, 53), 32)
+        self.text(surface, value, (22, 60), 32)
         try:
             temperature = float(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000
             self.text(surface, f"CPU  {temperature:.0f}°C", (22, 96), 25, "accent")

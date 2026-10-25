@@ -1,6 +1,6 @@
 # NEXUS
 
-A Pygame terminal for Raspberry Pi and HDMI monitors. One repository contains both the security/observatory display and the configurable home dashboard. Both share a black background, phosphor-green monospace text, amber warnings, and thin section borders. The bundled font makes the look consistent across computers. There are no scanlines, glow filters, or overlapping windows.
+A Pygame terminal for Raspberry Pi and HDMI monitors. One repository contains both the security/observatory display and the configurable home dashboard. Both share a black background, phosphor-green monospace text, amber warnings, and thin section borders. The bundled 8×8 glyphs render without antialiasing, with uppercase terminal text, literal ASCII borders and an ASCII wordmark. There are no scanlines, glow filters, or overlapping windows.
 
 ## Two views, one launcher
 
@@ -169,3 +169,5 @@ python3 ~/dashboard/dashboard.py --profile technical --snapshot /tmp/observatory
 The new layouts have been rendered at 1280×720 with SDL's dummy driver and checked locally. Previous Pi frame-rate figures above describe the old design; the retro layout and F5 switching still require an on-device check. No remote Pi deployment is performed by editing this repository.
 
 `assets/fonts/ShareTechMono-Regular.ttf` comes from Google Fonts' Share Tech Mono distribution and is licensed under the included SIL Open Font License (`assets/fonts/OFL.txt`). Colours and font selection are shared in `terminal_theme.py`.
+
+The default font renderer is `bitmap_font.py`, using Daniel Hepper’s public-domain IBM-derived `font8x8` data (see `assets/fonts/FONT8X8-LICENSE.txt`). Non-ASCII punctuation is transliterated for display. Home widgets still accept a custom TTF via their theme. Share Tech Mono remains bundled as an optional smoother font.
