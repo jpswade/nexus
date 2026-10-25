@@ -192,14 +192,26 @@ class PreparednessDesktop:
         u.text('FLOODS / '+summary('floods',data,now,errors),780,72,17,u.TEAL)
         setting=self.doomsday
         u.text('DOOMSDAY / '+(str(setting['seconds_to_midnight'])+'s' if setting else '--'),1080,72,17,u.AMBER)
-        u.panel(28,105,280,167,'LOCAL TIME','')
-        moment=dt.datetime.fromtimestamp(now)
-        u.text(moment.strftime('%H:%M'),44,153,60,u.TEXT)
-        u.text(moment.strftime('%S'),251,169,24,u.DIM)
-        u.text(moment.strftime('%a %d %b %Y').upper(),44,224,18,getattr(u,'LIME',u.TEAL))
-        u.line((44,255),(291,255),u.DIM)
-        second_progress=(moment.second+moment.microsecond/1e6)/60
-        u.line((44,255),(44+247*second_progress,255),u.TEAL,2)
+        warnings = [row for row in self.alerts.update(data,errors,now)
+                    if row['source'] in ('weather','floods')]
+        stale = sum(row['stale'] for row in warnings)
+        upcoming = sum(not row['stale'] and row['detail'].startswith('UPCOMING') for row in warnings)
+        current = sum(not row['stale'] and (row['source']=='floods' or row['detail'].startswith('IN FORCE')) for row in warnings)
+        unknown = len(warnings)-stale-upcoming-current
+        unavailable = sum(name not in data or name in errors or now-data[name]['fetched']>MAX_AGES[name]
+                          for name in ('weather','floods'))
+        u.panel(28,105,280,167,'WARNING OVERVIEW','')
+        u.text(str(len(warnings)) if warnings or not unavailable else '--',44,145,60,u.AMBER if warnings else u.TEXT)
+        u.text('LISTED',151,160,23,u.AMBER if warnings else u.DIM)
+        u.text('WEATHER + FLOOD',151,190,13,u.DIM)
+        counts = 'VALIDITY AWAITING FRESH DATA' if unavailable else f'IN FORCE {current} / UPCOMING {upcoming}'
+        u.text(counts,44,218,15,u.DIM if unavailable else u.TEAL)
+        note = f'STALE {stale} / VALIDITY UNKNOWN {unknown}'
+        if unavailable:
+            note = f'{unavailable}/2 SOURCES STALE OR UNAVAILABLE'
+        elif not warnings:
+            note = 'NONE LISTED / NOT AN ALL-CLEAR'
+        u.text(note,44,247,12,u.AMBER if unavailable or unknown else u.DIM)
         u.panel(28,286,280,266,'UK THREAT / GOV.UK','')
         sample=data.get('threat')
         level=sample['level'].upper() if sample else 'UNAVAILABLE'
