@@ -80,19 +80,23 @@ def age_label(seconds):
 
 
 class PlanetFeeds:
-    def __init__(self, directory):
+    def __init__(self, directory, urls=None, intervals=None, parser=parse, decoder=None):
+        self.urls = URLS if urls is None else urls
+        self.intervals = INTERVALS if intervals is None else intervals
+        self.parser = parser
+        self.decoder = decoder or (lambda name, response: json.load(response))
         self.directory = pathlib.Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.lock = threading.Lock()
         self.data, self.errors = {}, set()
-        for name in URLS:
+        for name in self.urls:
             try:
                 self.data[name] = json.loads((self.directory / f'{name}.json').read_text())
             except (OSError, ValueError):
                 pass
 
     def start(self):
-        for name in URLS:
+        for name in self.urls:
             threading.Thread(target=self._worker, args=(name,), daemon=True).start()
 
     def snapshot(self):
@@ -102,9 +106,9 @@ class PlanetFeeds:
     def _worker(self, name):
         while True:
             try:
-                request = urllib.request.Request(URLS[name], headers={'User-Agent': 'NexusDashboard/1.0'})
+                request = urllib.request.Request(self.urls[name], headers={'User-Agent': 'NexusDashboard/1.0', 'Accept': 'application/json'})
                 with urllib.request.urlopen(request, timeout=20) as response:
-                    result = parse(name, json.load(response))
+                    result = self.parser(name, self.decoder(name, response))
                 result['fetched'] = time.time()
                 with self.lock:
                     self.data[name] = result
@@ -116,10 +120,10 @@ class PlanetFeeds:
                 except OSError:
                     pass
                 print(f'{name}: feed updated', flush=True)
-                delay = INTERVALS[name]
+                delay = self.intervals[name]
             except Exception as error:
                 with self.lock:
                     self.errors.add(name)
                 print(f'{name}: feed unavailable ({error})', flush=True)
-                delay = max(60, INTERVALS[name])
+                delay = max(60, self.intervals[name])
             time.sleep(delay)

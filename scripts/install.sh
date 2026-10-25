@@ -22,6 +22,7 @@ if [ -f "$DEST/dashboard.py" ]; then
 fi
 cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
 cp "$SOURCE/feeds.py" "$DEST/feeds.py"
+cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$DEST/"
 mkdir -p "$DEST/data"
 cp "$SOURCE/data/land.json" "$DEST/data/land.json"
 cp "$SOURCE/config.json" "$DEST/config.json"
