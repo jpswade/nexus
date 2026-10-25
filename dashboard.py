@@ -400,8 +400,7 @@ while running:
     text('N E X U S',28,9,42,TEAL)
     text('CIVIL / NETWORK CONSOLE',30,48,12,DIM)
     text(NAMES[workspace].upper(),320,27,22,DIM)
-    if ARGS.profile != 'uk':
-        text(now.strftime('%H:%M:%S'),1252,18,32,TEXT,True)
+    text(now.strftime('%H:%M:%S'),1252,18,32,TEXT,True)
     if ARGS.profile!='uk':
         text(' '.join(f'[{i+1}]' if i==workspace else f' {i+1} ' for i in range(4)),28,64,20,TEXT)
         text('CMD> _' if int(epoch*2)%2 else 'CMD>',680,64,18,DIM)
