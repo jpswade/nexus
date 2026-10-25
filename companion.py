@@ -16,6 +16,16 @@ from status_summary import summary
 ROOT = Path(__file__).resolve().parent
 
 
+def find_lcd(sysfs=Path('/sys/class/graphics')):
+    for entry in sorted(sysfs.glob('fb[0-9]*')):
+        try:
+            if (entry/'name').read_text().strip() == 'fb_ili9486':
+                return '/dev/'+entry.name
+        except OSError:
+            continue
+    raise RuntimeError('ILI9486 display unavailable; load the piscreen overlay')
+
+
 class Framebuffer:
     """Reject unexpected devices/formats rather than touching the HDMI console."""
     def __init__(self, path):
@@ -126,13 +136,13 @@ class Companion:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--device', default='/dev/fb1')
+    parser.add_argument('--device', help='Override automatic ILI9486 discovery')
     parser.add_argument('--snapshot')
     args = parser.parse_args()
     config = json.loads(Path(os.environ.get('NEXUS_CONFIG', ROOT/'config.json')).read_text())
     cache = Path(os.environ.get('NEXUS_CACHE', ROOT/'.cache'))/'preparedness'
     view = Companion()
-    target = None if args.snapshot else Framebuffer(args.device)
+    target = None if args.snapshot else Framebuffer(args.device or find_lcd())
     start, refreshed = time.monotonic(), -100
     while True:
         age = time.monotonic()-start
