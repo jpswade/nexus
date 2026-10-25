@@ -1,6 +1,6 @@
 # NEXUS
 
-A Pygame terminal for Raspberry Pi and HDMI monitors. One repository contains both the security/observatory display and the configurable home dashboard. Both share a midnight-blue background, cyan monospace text, amber warnings, and thin instrument panels inspired by 1990s cyber-thriller interfaces. The UK threat and midnight views include a rotating wireframe sphere, orbiting nodes and counter-rotating arcs. These graphics are decorative, not incident telemetry.
+An ambient Pygame dashboard for Raspberry Pi and HDMI monitors. NEXUS uses the original dark instrument-panel layout: clear typography, one central subject, and persistent clock, weather, PHP priority and regional warnings. Static panels are cached; only the central map or globe animates. The configurable home view remains a separate launcher option.
 
 ## Two views, one launcher
 
@@ -14,22 +14,22 @@ python3 launch.py home    # Configurable clock, weather, agenda and plugins
 
 Nexus uses `config.json` for location. Home uses `home.json` for layout and widgets; the launcher creates it from `home.example.json` on first use. Its weather widget shares the Nexus location unless explicitly overridden. `NEXUS_CONFIG` and `NEXUS_HOME_CONFIG` select alternate config paths (use absolute paths for switching). [Home dashboard setup and plugin API](HOME_DASHBOARD.md).
 
-## UK-first preparedness
+## Focused desktop
 
-The default profile rotates through UK status, incident/cyber reporting, local readiness, and the published Doomsday Clock. **F6** switches to the technical profile; **F5** switches to the configurable home dashboard. In the UK profile, **O** opens the selected source in your installed browser; source rows are also clickable.
+The sidebars remain in place across every workspace and both profiles:
 
-Official terrorism assessments, weather bulletins, flood warnings, and news reports remain distinct. No combined threat score is calculated. The Doomsday Clock shows the Bulletin of the Atomic Scientists’ published symbolic setting, with its announcement and verification dates. [Sources, local setup and data limitations](UK_PREPAREDNESS.md).
+- **Left:** large clock/date, local weather, and the official national assessment.
+- **Centre:** one map, advisory or source briefing at a time.
+- **Right:** PHP priority and retained regional warnings, including explicit stale/unknown states.
+- **Bottom:** the latest meaningful source change; successful routine refreshes do not replay the entire feed.
 
-## Technical profile workspaces
+The default UK profile rotates once per **60 seconds** through Local Situation, PHP Watch, Public Briefing and World View. The technical profile substitutes an advisory overview and CISA KEV list for the situation map and public-news briefing. **F6** changes profile; **F5** switches to the configurable home view. PHP, CISA, PHP.net, preparedness and planetary sources keep refreshing in both profiles.
 
-The display rotates every 32 seconds through four workspaces:
+**1–4** or the numbered header controls select a view; **Left/Right** switch view; **A** toggles rotation; **T** opens/dismisses a short central terminal briefing; **O** opens the priority source; **Space** pauses animation/rotation; **Escape** exits. Cards with sources are clickable. The terminal never covers the priority sidebars.
 
-1. **Security overview**: recent critical PHP counts and one priority advisory.
-2. **PHP watch**: one vendor advisory or PHP.net announcement at a time, advancing every 12 seconds.
-3. **Exploited in the wild**: four readable CISA KEV entries per page, advancing every 12 seconds.
-4. **Observatory**: green wireframe globe with ISS and earthquake markers, local clock/weather, geomagnetic Kp and earthquake counts.
+Automatic terminal briefings appear for nine seconds near the end of the map/overview workspace, once per four-minute cycle. A new critical PHP advisory or CISA addition can also trigger a short briefing. Initial cache loads and unchanged refreshes stay quiet. The terminal is a read-only presentation, not a shell. The former replaying transcript, moving panel borders and local-machine telemetry strip are absent from the focused layout.
 
-**1–4** select a workspace, **Left/Right** switch workspace, **A** toggles rotation, **T** opens a full-screen read-only briefing, **Space** pauses animation/rotation, and **Escape** quits. Briefing text has a short reveal and blinking cursor; it does not execute commands. Feed refreshes continue in background threads. The bottom controls stay still for readability.
+The regional card uses the existing retained-alert model: fresh source failures do not clear previous warnings, and expired bulletins are still excluded using their known validity windows. No combined threat score is calculated. The Doomsday Clock remains an explicitly symbolic, dated publisher setting in the World View footer, rather than an urgent persistent status. [UK source setup and data limitations](UK_PREPAREDNESS.md).
 
 ## Security data
 
@@ -43,9 +43,9 @@ GitHub, CISA and PHP.net feeds refresh every 15, 30 and 15 minutes respectively.
 
 ## Planetary data
 
-The observatory shows the clock, local weather, a globe with Natural Earth coastlines, modelled ISS coordinates, altitude and velocity, global M2.5+ USGS earthquake counts in the last 24 hours, and NOAA Kp observations. Solar wind data continues to be fetched and cached for extensions; the compact status display prioritises Kp.
+World View shows a rotating globe with Natural Earth coastlines and sampled ISS altitude/velocity with observation age. The UK map is geographic context, not a plotted hazard footprint. Earthquake, Kp and solar-wind data continue to be fetched/cached for the companion view and extensions.
 
-The globe's camera moves for presentation; markers use the source coordinates. Pulsing earthquake rings are decorative and do not represent real-time seismic waves. ISS coordinates are modelled satellite positions, not a live camera or an overhead-pass prediction.
+The globe's camera moves for presentation; markers use the source coordinates. ISS coordinates are modelled satellite positions, not a live camera or an overhead-pass prediction.
 
 ## Public feeds
 
@@ -65,7 +65,7 @@ No API keys are required. Weather requests send configured coordinates to Open-M
 
 ## Hardware and software
 
-Initially deployed on a Raspberry Pi 2 Model B Rev 1.1, running 32-bit Raspbian 13 with a labwc Wayland desktop and a 1920×1080 HDMI monitor. Rendering targets 12 fps using a 1280×720 canvas, GPU-scaled to the monitor. The original Pi 2 measured about 8 fps with the planetary view; native 1080p software rendering was about 4 fps. If SDL scaling is unavailable, the app falls back to native fullscreen rendering.
+Initially deployed on a Raspberry Pi 2 Model B Rev 1.1, running 32-bit Raspbian 13 with a labwc Wayland desktop and a 1920×1080 HDMI monitor. Rendering targets 12 fps using a 1280×720 canvas, GPU-scaled to the monitor. The earlier planetary view measured about 8 fps; the later dense UK console measured roughly 5 fps. The focused layout caches text/layout once per second and limits central geometry updates to reduce work. If SDL scaling is unavailable, the app falls back to native fullscreen rendering.
 
 Requires Python 3.9+ and Pygame 2.6 or newer. On Raspberry Pi OS:
 
