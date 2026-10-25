@@ -137,8 +137,11 @@ OX, OY = (W-1280*S)/2, (H-720*S)/2
 # Shared phosphor terminal palette.
 BG=pygame.Color(PALETTE['background']); PANEL=pygame.Color(PALETTE['panel'])
 LINE=pygame.Color(PALETTE['border']); TEXT=pygame.Color(PALETTE['text'])
-DIM=pygame.Color(PALETTE['muted']); TEAL=TEXT; LIME=TEXT; BLUE=TEXT
+DIM=pygame.Color(PALETTE['muted']); TEAL=pygame.Color(PALETTE['accent']); LIME=pygame.Color(PALETTE['lime']); BLUE=pygame.Color(PALETTE['blue'])
 AMBER=pygame.Color(PALETTE['error']); TAB=TEXT; WHITE=TEXT; SHADOW=BG
+from live_telemetry import Telemetry
+telemetry=Telemetry()
+motion_time=0.
 fonts = {}
 labels = collections.OrderedDict()
 
@@ -176,6 +179,21 @@ def panel(x,y,w,h,label,tag):
     # Narrow panels reserve the heading for the section name.
     if w>650:text(tag.upper(),x+w-16,y+17,16,DIM,True)
     line((x+16,y+38),(x+w-16,y+38),LINE)
+    # Moving edge tracer: decorative motion, independent of source status.
+    perimeter=2*(w+h)
+    phase=(motion_time*36+x+y)%perimeter
+    def edge(distance):
+        distance%=perimeter
+        if distance<w:return x+distance,y
+        distance-=w
+        if distance<h:return x+w,y+distance
+        distance-=h
+        if distance<w:return x+w-distance,y+h
+        return x,y+h-(distance-w)
+    for trail in range(6):
+        colour=TEAL if trail<2 else LINE
+        line(edge(phase-trail*4),edge(phase-trail*4-2),colour,2)
+    line((x,y),(x,y+12),TEAL,2)
 
 def bar(x,y,w,value,color):
     bevel(x,y,w,7,(176,182,180),True)
@@ -187,7 +205,7 @@ def map_blit(surface,x,y):
     screen.blit(pygame.transform.scale(surface,(round(surface.get_width()*S),round(surface.get_height()*S))),pos(x,y))
 
 prepared_ui = PreparednessDesktop(SimpleNamespace(text=text, panel=panel, line=line, blit=map_blit,
-    TEXT=TEXT, DIM=DIM, TEAL=TEAL, AMBER=AMBER, RED=(255,100,100)), preparedness, LOCATION)
+    TEXT=TEXT, DIM=DIM, TEAL=TEAL, LIME=LIME, AMBER=AMBER, RED=(255,100,100)), preparedness, LOCATION)
 
 def open_source(url):
     import webbrowser
@@ -372,7 +390,13 @@ while running:
         stale=name in errors or age>MAX_AGES[name]
         return ('STALE / ' if stale else 'OBS / ')+age_label(age).upper()
 
+    motion_time=t
+    if not paused:telemetry.sample()
     screen.blit(background,(0,0))
+    for node in range(25):
+        x=30+node*49
+        brightness=(math.sin(t*.8+node*.4)+1)/2
+        circle(x,97,1,LIME if brightness>.94 else LINE)
     text('N E X U S',28,9,42,TEAL)
     text('CIVIL / NETWORK CONSOLE',30,48,12,DIM)
     text(NAMES[workspace].upper(),320,27,22,DIM)
@@ -402,8 +426,14 @@ while running:
     else:
         desktop.draw(workspace,age,security_data,security_errors,epoch)
     controls='1-4 VIEWS / A AUTO / O SOURCE / F5 HOME / F6 TECH' if ARGS.profile=='uk' else '1-4 VIEWS / A AUTO / T BRIEF / F5 HOME / F6 UK'
-    text(controls,44,679,18,DIM)
-    text('SPACE PAUSE / ESC EXIT',1236,679,18,DIM,True)
+    text(telemetry.label(),44,669,15,TEAL)
+    text('LOCAL TELEMETRY / 2s',1236,669,14,LIME,True)
+    samples=list(telemetry.history)
+    if len(samples)>1:
+        points=[(650+i*3,687-value*.18) for i,value in enumerate(samples)]
+        for a,b in zip(points,points[1:]):line(a,b,TEAL)
+    text(controls,44,698,13,DIM)
+    text('SPACE PAUSE / ESC EXIT',1236,698,13,DIM,True)
     if ARGS.snapshot:
         pygame.image.save(screen,ARGS.snapshot)
         running=False

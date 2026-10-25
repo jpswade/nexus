@@ -41,7 +41,7 @@ class UKMap:
             return self.cached
         age=tick/4
         frame=pygame.Surface((480,480))
-        frame.fill('#091321')
+        frame.fill('#08141a')
         for lon in range(-11,4):
             points=[project(lon,lat,age,0) for lat in range(49,63)]
             pygame.draw.lines(frame,'#142d3e',False,points)

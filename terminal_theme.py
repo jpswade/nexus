@@ -3,9 +3,9 @@ from pathlib import Path
 
 FONT = Path(__file__).resolve().parent / "assets/fonts/ShareTechMono-Regular.ttf"
 PALETTE = {
-    "background": "#050b17", "panel": "#091321", "text": "#c2f3fa",
-    "muted": "#689cae", "accent": "#55e6ed", "border": "#224759",
-    "error": "#ffbf66",
+    "background": "#050d11", "panel": "#08141a", "text": "#d8ecee",
+    "muted": "#70949f", "accent": "#35dccc", "border": "#203640",
+    "error": "#ffbf66", "lime": "#b9f45b", "blue": "#509ac5",
 }
 
 

@@ -21,7 +21,7 @@ class ObservatoryGlobe:
 
     def draw(self, seconds):
         s=self.surface
-        s.fill('#091321')
+        s.fill('#08141a')
         cx,cy,r=284,185,162
         longitude=math.radians(-15+seconds*2.5)
         latitude=math.radians(28)

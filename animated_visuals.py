@@ -1,6 +1,7 @@
 """Small decorative vector animations, cached at six frames per second."""
 import math
 import pygame
+from terminal_theme import PALETTE
 
 
 class Visuals:
@@ -14,8 +15,8 @@ class Visuals:
             return self.cache[key]
         t=key[1]/6
         s=pygame.Surface((112,82))
-        s.fill('#091321')
-        cyan,dim,violet=(85,230,237),(30,71,88),(117,108,177)
+        s.fill(PALETTE['panel'])
+        cyan,dim,violet=pygame.Color(PALETTE['accent']),(27,68,75),pygame.Color(PALETTE['lime'])
         if kind=='water':
             for band in range(4):
                 points=[(x,23+band*11+5*math.sin(x*.08-t*1.6+band*.8)) for x in range(5,108,3)]
@@ -44,6 +45,11 @@ class Visuals:
             pygame.draw.ellipse(s,violet,(9,28,94,24),1)
             x,y=cx+47*math.cos(t*.8),40+12*math.sin(t*.8)
             pygame.draw.circle(s,cyan,(round(x),round(y)),3)
+            for node in range(6):
+                angle=t*.35+node*math.tau/6
+                px,py=cx+25*math.cos(angle),cy+25*math.sin(angle)
+                pygame.draw.line(s,dim,(cx,cy),(px,py))
+                pygame.draw.circle(s,violet if node==0 else cyan,(round(px),round(py)),2)
             for quadrant in range(4):
                 start=t*.25+quadrant*math.pi/2
                 pygame.draw.arc(s,cyan,(18,2,76,76),start,start+.6,1)

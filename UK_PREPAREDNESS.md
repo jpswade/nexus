@@ -170,3 +170,11 @@ VISUAL FX and do not encode warning intensity, river height or network activity.
 They use the paused animation clock and bounded caches at six frames per second.
 The clock's seconds sweep reflects actual time. Text continues to advance only
 once every four seconds, independently of these effects.
+
+The shared palette matches the original near-black/turquoise/lime reference.
+All main panel borders have decorative moving tracers, plus a moving header-node
+pattern. The footer samples real Linux CPU counters, available memory and core
+temperature every two seconds; its CPU history retains up to three minutes. Missing
+measurements remain unavailable. Space freezes decorative motion and telemetry
+sampling; actual wall-clock time continues. Warning text and source data are not
+randomised to create activity.

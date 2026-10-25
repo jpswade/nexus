@@ -194,22 +194,22 @@ class PreparednessDesktop:
         moment=dt.datetime.fromtimestamp(now)
         u.text(moment.strftime('%H:%M'),44,153,60,u.TEXT)
         u.text(moment.strftime('%S'),251,169,24,u.DIM)
-        u.text(moment.strftime('%a %d %b %Y').upper(),44,224,18,u.DIM)
+        u.text(moment.strftime('%a %d %b %Y').upper(),44,224,18,getattr(u,'LIME',u.TEAL))
         u.line((44,255),(291,255),u.DIM)
         second_progress=(moment.second+moment.microsecond/1e6)/60
         u.line((44,255),(44+247*second_progress,255),u.TEAL,2)
         u.panel(28,286,280,266,'UK THREAT / GOV.UK','')
         sample=data.get('threat')
         level=sample['level'].upper() if sample else 'UNAVAILABLE'
-        u.text(level,42,338,44,u.AMBER)
+        u.text(level,42,338,44,getattr(u,'LIME',u.TEAL))
         meanings={'LOW':'Attack highly unlikely','MODERATE':'Attack possible, not likely',
                   'SUBSTANTIAL':'An attack is likely','SEVERE':'An attack is highly likely',
                   'CRITICAL':'Attack highly likely in the near future'}
         self.paragraphs(meanings.get(level,'Awaiting official source'),44,395,27,18,2,u.DIM)
         for i,name in enumerate(LEVELS):
             selected=name==level.lower()
-            u.line((44+i*50,459),(84+i*50,459),u.AMBER if selected else u.DIM,4 if selected else 1)
-            if selected:u.text('>> '+name.upper(),44,475,15,u.AMBER)
+            u.line((44+i*50,459),(84+i*50,459),getattr(u,'LIME',u.TEAL) if selected else u.DIM,4 if selected else 1)
+            if selected:u.text('>> '+name.upper(),44,475,15,getattr(u,'LIME',u.TEAL))
         self.paragraphs(source_status('threat',data,errors,now),44,509,30,14,2,u.DIM)
         self.links.append(((28,286,280,266),LINKS['threat']))
         self.active_url=LINKS['threat']
@@ -234,7 +234,7 @@ class PreparednessDesktop:
         self.paragraphs(getattr(self.feeds,'flood_scope','ENGLAND'),596,634,33,11,1,u.DIM)
         self.links.append(((580,565,244,91),LINKS['floods']))
         u.panel(28,565,280,91,'DOOMSDAY / BULLETIN','')
-        u.text(str(setting['seconds_to_midnight']) if setting else '--',44,601,36,u.AMBER)
+        u.text(str(setting['seconds_to_midnight']) if setting else '--',44,601,36,getattr(u,'LIME',u.TEAL))
         u.text('SECONDS TO MIDNIGHT',112,607,16,u.TEXT)
         u.text(setting['announced'] if setting else 'UNAVAILABLE',112,631,13,u.DIM)
         self.links.append(((28,565,280,91),setting['url'] if setting else 'https://thebulletin.org/doomsday-clock/'))
