@@ -1,0 +1,21 @@
+"""Shared terminal identity for the Nexus and configurable home views."""
+from pathlib import Path
+
+FONT = Path(__file__).resolve().parent / "assets/fonts/ShareTechMono-Regular.ttf"
+PALETTE = {
+    "background": "#030a06", "panel": "#07110b", "text": "#9cffb2",
+    "muted": "#70b782", "accent": "#b9ffca", "border": "#307348",
+    "error": "#ffbf66",
+}
+
+
+def font(size):
+    import pygame
+    return pygame.font.Font(str(FONT), max(10, round(size)))
+
+
+def switch_view(view):
+    """Replace the current process, preserving systemd ownership and signals."""
+    import os
+    import sys
+    os.execv(sys.executable, [sys.executable, str(FONT.parents[2] / "launch.py"), view])

@@ -23,8 +23,23 @@ fi
 cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
 cp "$SOURCE/feeds.py" "$DEST/feeds.py"
 cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$DEST/"
+cp "$SOURCE/launch.py" "$SOURCE/terminal_theme.py" "$SOURCE/home.example.json" "$DEST/"
+cp -R "$SOURCE/pi_dashboard" "$SOURCE/plugins" "$SOURCE/assets" "$DEST/"
 mkdir -p "$DEST/data"
 cp "$SOURCE/data/land.json" "$DEST/data/land.json"
+for name in agenda.json agenda.example.json metric.json; do
+    if [ ! -f "$DEST/data/$name" ]; then
+        cp "$SOURCE/data/$name" "$DEST/data/$name"
+    fi
+done
+# Never overwrite an installed layout during an upgrade.
+if [ ! -f "$DEST/home.json" ]; then
+    if [ -f "$SOURCE/home.json" ]; then
+        cp "$SOURCE/home.json" "$DEST/home.json"
+    else
+        cp "$SOURCE/home.example.json" "$DEST/home.json"
+    fi
+fi
 cp "$SOURCE/config.json" "$DEST/config.json"
 chmod 600 "$DEST/config.json"
 mkdir -p "$DEST/.cache"

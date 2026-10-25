@@ -1,4 +1,6 @@
 config.json
+home.json
+*.tmp
 .cache/
 __pycache__/
 *.py[cod]

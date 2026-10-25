@@ -6,6 +6,6 @@ Type=simple
 WorkingDirectory=%h/dashboard
 Environment=SDL_VIDEODRIVER=wayland
 Environment=SDL_VIDEO_ALLOW_SCREENSAVER=0
-ExecStart=/usr/bin/python3 %h/dashboard/dashboard.py
+ExecStart=/usr/bin/python3 %h/dashboard/launch.py nexus
 Restart=on-failure
 RestartSec=5
