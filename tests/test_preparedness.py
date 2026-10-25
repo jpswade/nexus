@@ -8,10 +8,11 @@ import tempfile
 import time
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 from preparedness import PreparednessFeeds, build_sources, parse_feed, source_status
-from preparedness_ui import midnight_remaining
+from preparedness_ui import midnight_remaining, PreparednessDesktop
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,6 +24,22 @@ def national_body(level='substantial'):
 
 
 class PreparednessTests(unittest.TestCase):
+    def test_animation_keeps_the_official_level_stable(self):
+        for level in ('LOW', 'MODERATE', 'SUBSTANTIAL', 'SEVERE', 'CRITICAL', None):
+            calls = []
+            ui = SimpleNamespace(text=lambda *args: calls.append(args), line=lambda *args: None,
+                                 panel=lambda *args: None, TEXT='green', DIM='grey',
+                                 TEAL='green', AMBER='orange', RED='red')
+            view = PreparednessDesktop(ui, SimpleNamespace(weather_scope='UK'))
+            data = {'threat': {'level': level, 'fetched': 100}} if level else {}
+            for age in (0, .5, 1.2, 4, 12):
+                calls.clear()
+                view.draw(0, age, data, set(), 101)
+                hero = [call[0] for call in calls if len(call)>3 and call[3]==112]
+                self.assertEqual(hero, [level or 'UNAVAILABLE'])
+                selected = [call[0] for call in calls if str(call[0]).startswith('>> ')]
+                self.assertEqual(selected, ['>> '+level] if level else [])
+
     def test_uk_level_is_not_northern_ireland_level(self):
         self.assertEqual(parse_feed('threat', national_body())['level'], 'SUBSTANTIAL')
         with self.assertRaises(ValueError):

@@ -6,5 +6,6 @@ __pycache__/
 *.py[cod]
 *.log
 preview*.png
+preview*.gif
 .DS_Store
 .venv/

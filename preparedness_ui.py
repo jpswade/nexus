@@ -2,7 +2,8 @@
 import datetime as dt
 import textwrap
 from zoneinfo import ZoneInfo
-from preparedness import LINKS, MAX_AGES, source_status
+import math
+from preparedness import LINKS, MAX_AGES, LEVELS, source_status
 
 NAMES = ('UK status brief', 'Incident & cyber watch', 'Local readiness', 'Minutes to midnight')
 PREPARE_TIPS = (
@@ -57,31 +58,62 @@ class PreparednessDesktop:
         self.links = []
         self.active_url = LINKS['prepare']
         u.panel(28, 105, 1224, 551, f'0{index+1} / '+NAMES[index].upper(), 'INDEPENDENT / PUBLIC SOURCES')
+        # Animation belongs to the terminal chrome, never to the assessment.
+        sweep = int((age % 6) / 6 * 28)
+        u.text('DISPLAY ['+'.'*sweep+'>'+'.'*(27-sweep)+']', 760, 83, 12, u.DIM)
         if index == 0:
             sample = data.get('threat')
             stale = sample and ('threat' in errors or now-sample['fetched'] > MAX_AGES['threat'])
-            u.text('UK TERRORISM ASSESSMENT / '+('LAST KNOWN' if stale else 'NATIONAL'), 48, 157, 21, u.DIM)
-            u.text(sample['level'] if sample else 'UNAVAILABLE', 48, 190, 44, u.AMBER if sample else u.DIM)
-            self.status('threat', data, errors, now, 248)
-            self.source('GOV.UK / JTAC & MI5', LINKS['threat'], 278, primary=False)
-            u.line((48, 321), (1230, 321))
-            u.text('MET OFFICE / '+self.feeds.weather_scope.upper(), 48, 344, 22, u.DIM)
+            level = sample['level'].upper() if sample else 'UNAVAILABLE'
+            position = LEVELS.index(level.lower())+1 if level.lower() in LEVELS else None
+            colour = u.AMBER if sample else u.DIM
+            u.text('UK TERRORISM THREAT / '+('LAST KNOWN ASSESSMENT' if stale else 'NATIONAL ASSESSMENT'), 48, 162, 23, u.DIM)
+            # A stable hero word, almost three times the former size.
+            u.text(level, 64, 210, 112, colour)
+            meanings = {
+                'LOW': 'AN ATTACK IS HIGHLY UNLIKELY',
+                'MODERATE': 'AN ATTACK IS POSSIBLE BUT NOT LIKELY',
+                'SUBSTANTIAL': 'AN ATTACK IS LIKELY',
+                'SEVERE': 'AN ATTACK IS HIGHLY LIKELY',
+                'CRITICAL': 'AN ATTACK IS HIGHLY LIKELY IN THE NEAR FUTURE',
+            }
+            u.text(meanings.get(level, 'AWAITING AN OFFICIAL ASSESSMENT'), 64, 328, 23, colour)
+            # Brackets unfold on entry. The selected level never cycles or flashes.
+            extent = min(1., max(0., age)/1.2)
+            trace = 64+int((age % 8)/8*710)
+            u.line((trace,194),(trace+48,194),colour,2)
+            for x, direction in ((48, 1), (850, -1)):
+                for y, dy in ((200, 1), (320, -1)):
+                    u.line((x,y),(x+direction*28*extent,y),colour,2)
+                    u.line((x,y),(x,y+dy*24*extent),colour,2)
+            u.text('OFFICIAL SCALE', 952, 200, 18, u.DIM)
+            u.text(f'{position:02}/05' if position else '--/05', 952, 232, 76, colour)
+            u.text('CATEGORY / NOT ODDS', 952, 319, 16, u.DIM)
+            # A slow scanner travels below the index; it is a display effect.
+            scanner = 952+int((math.sin(age*.9)+1)*126)
+            u.line((952,351),(1224,351),u.DIM)
+            u.line((scanner,345),(scanner,357),colour,2)
+            for i, name in enumerate(LEVELS, 1):
+                x = 48+(i-1)*237
+                selected = i == position
+                u.text(('>> ' if selected else '   ')+name.upper(), x, 375, 18, colour if selected else u.DIM)
+                u.text('[###########]' if selected else '[-----------]', x, 399, 18, colour if selected else u.DIM)
+            self.status('threat', data, errors, now, 431)
+            self.source('GOV.UK / JTAC & MI5', LINKS['threat'], 456)
+            u.line((48,490),(1230,490))
+            u.text('MET OFFICE / '+self.feeds.weather_scope.upper(),48,506,18,u.DIM)
             weather = data.get('weather')
             rows = weather.get('items', []) if weather else []
+            weather_url = LINKS['weather']
             if rows:
                 row = rows[int(now/12) % len(rows)]
-                colour = u.RED if row['colour'] == 'red' else u.AMBER
-                self.wrap(row['title'], 387, color=colour, lines=3)
-                self.active_url = row['url']
-                if row.get('published'):
-                    stamp = dt.datetime.fromtimestamp(row['published'], dt.timezone.utc).strftime('%d %b %H:%M UTC')
-                    u.text('BULLETIN '+stamp, 48, 506, 18, u.DIM)
+                self.wrap(row['title'], 535, size=22, width=100, lines=2,
+                          color=u.RED if row['colour']=='red' else u.AMBER)
+                weather_url = row['url']
             else:
-                self.wrap('No warning bulletins returned' if weather else 'Warning feed unavailable / awaiting verification', 388)
-                self.active_url = LINKS['weather']
-            u.text('Regional bulletins; check the source for locations and validity times.', 48, 538, 20, u.DIM)
-            self.source('MET OFFICE / WARNING DETAILS', self.active_url)
-            self.status('weather', data, errors, now)
+                self.wrap('No warning bulletins returned' if weather else 'Weather warnings unavailable',535,size=22,lines=2)
+            self.source('WEATHER / CHECK AREA & VALIDITY',weather_url,598,primary=False)
+            self.status('weather',data,errors,now)
         elif index == 1:
             name = 'ncsc' if int(age/12) % 2 == 0 else 'news'
             label = 'NCSC / OFFICIAL PUBLICATION' if name == 'ncsc' else 'BBC NEWS / MEDIA REPORT'
