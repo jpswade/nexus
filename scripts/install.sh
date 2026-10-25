@@ -23,6 +23,7 @@ fi
 cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
 cp "$SOURCE/feeds.py" "$DEST/feeds.py"
 cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$SOURCE/preparedness.py" "$SOURCE/preparedness_ui.py" "$DEST/"
+cp "$SOURCE/alert_state.py" "$DEST/"
 cp "$SOURCE/live_telemetry.py" "$DEST/"
 cp "$SOURCE/animated_visuals.py" "$DEST/"
 cp "$SOURCE/observatory_globe.py" "$DEST/"

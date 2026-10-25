@@ -178,3 +178,22 @@ temperature every two seconds; its CPU history retains up to three minutes. Miss
 measurements remain unavailable. Space freezes decorative motion and telemetry
 sampling; actual wall-clock time continues. Warning text and source data are not
 randomised to create activity.
+
+### Persistent warning strip
+
+All four UK views and the companion LCD keep a warning strip visible whenever
+weather bulletins, flood alerts or a severe/critical national threat are listed.
+Its border pulses once every two seconds; words never blink off. Multiple alerts
+rotate every eight seconds with a persistent total. New or changed warning
+identities/severities get a NEW announcement for 60 seconds, then remain in the
+strip. Initial cached warnings are shown without being called new.
+
+Weather validity is read from the RSS description using UK local time and the
+warning link's date. Upcoming warnings are labelled; expired warnings leave the
+strip. Unknown formats say CHECK VALIDITY AT SOURCE. Weather coverage remains the
+configured region, not a claim that every warning applies at your address.
+Successful empty feeds clear warnings; failed/missing/stale sources retain the
+last known warning with a STALE label. News headlines do not trigger alarms.
+Space freezes animation; data refresh and warning lifecycle continue. The strip
+replaces footer telemetry while warnings are present. Click it or press O to
+open the displayed warning. The Home and technical profiles retain their own UI.

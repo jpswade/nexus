@@ -426,14 +426,16 @@ while running:
     else:
         desktop.draw(workspace,age,security_data,security_errors,epoch)
     controls='1-4 VIEWS / A AUTO / O SOURCE / F5 HOME / F6 TECH' if ARGS.profile=='uk' else '1-4 VIEWS / A AUTO / T BRIEF / F5 HOME / F6 UK'
-    text(telemetry.label(),44,669,15,TEAL)
-    text('LOCAL TELEMETRY / 2s',1236,669,14,LIME,True)
-    samples=list(telemetry.history)
-    if len(samples)>1:
-        points=[(650+i*3,687-value*.18) for i,value in enumerate(samples)]
-        for a,b in zip(points,points[1:]):line(a,b,TEAL)
-    text(controls,44,698,13,DIM)
-    text('SPACE PAUSE / ESC EXIT',1236,698,13,DIM,True)
+    has_alerts = ARGS.profile=='uk' and prepared_ui.alert_rail(t,uk_data,uk_errors,epoch)
+    if not has_alerts:
+        text(telemetry.label(),44,669,15,TEAL)
+        text('LOCAL TELEMETRY / 2s',1236,669,14,LIME,True)
+        samples=list(telemetry.history)
+        if len(samples)>1:
+            points=[(650+i*3,687-value*.18) for i,value in enumerate(samples)]
+            for a,b in zip(points,points[1:]):line(a,b,TEAL)
+        text(controls,44,698,13,DIM)
+        text('SPACE PAUSE / ESC EXIT',1236,698,13,DIM,True)
     if ARGS.snapshot:
         pygame.image.save(screen,ARGS.snapshot)
         running=False
