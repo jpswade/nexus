@@ -51,9 +51,10 @@ class Widget:
 
     def panel(self, surface):
         surface.fill(self.theme["panel"])
-        ascii_box(surface, surface.get_rect(), self.theme["border"])
-        self.text(surface, "[ "+self.spec.get("title", self.spec["type"]).upper()+" ]", (22, 17), 20, "accent")
-        self.text(surface, "-"*max(1, (surface.get_width()-44)//8), (22, 40), 16, "border")
+        pygame.draw.rect(surface, self.theme["border"], surface.get_rect(), 1)
+        pygame.draw.line(surface, self.theme["accent"], (0, 0), (60, 0), 3)
+        self.text(surface, self.spec.get("title", self.spec["type"]).upper(), (22, 17), 20, "accent")
+        pygame.draw.line(surface, self.theme["border"], (22, 43), (surface.get_width()-22, 43))
 
     def draw(self, surface, now):
         self.panel(surface)

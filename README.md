@@ -1,6 +1,6 @@
 # NEXUS
 
-A Pygame terminal for Raspberry Pi and HDMI monitors. One repository contains both the security/observatory display and the configurable home dashboard. Both share a black background, phosphor-green monospace text, amber warnings, and thin section borders. The bundled 8×8 glyphs render without antialiasing, with uppercase terminal text, literal ASCII borders and an ASCII wordmark. There are no scanlines, glow filters, or overlapping windows.
+A Pygame terminal for Raspberry Pi and HDMI monitors. One repository contains both the security/observatory display and the configurable home dashboard. Both share a midnight-blue background, cyan monospace text, amber warnings, and thin instrument panels inspired by 1990s cyber-thriller interfaces. The UK threat and midnight views include a rotating wireframe sphere, orbiting nodes and counter-rotating arcs. These graphics are decorative, not incident telemetry.
 
 ## Two views, one launcher
 
@@ -170,4 +170,4 @@ The new layouts have been rendered at 1280×720 with SDL's dummy driver and chec
 
 `assets/fonts/ShareTechMono-Regular.ttf` comes from Google Fonts' Share Tech Mono distribution and is licensed under the included SIL Open Font License (`assets/fonts/OFL.txt`). Colours and font selection are shared in `terminal_theme.py`.
 
-The default font renderer is `bitmap_font.py`, using Daniel Hepper’s public-domain IBM-derived `font8x8` data (see `assets/fonts/FONT8X8-LICENSE.txt`). Non-ASCII punctuation is transliterated for display. Home widgets still accept a custom TTF via their theme. Share Tech Mono remains bundled as an optional smoother font.
+The default renderer uses the bundled Share Tech Mono font. The optional `bitmap_font.py` renderer and public-domain IBM-derived `font8x8` data remain available for custom widgets (see `assets/fonts/FONT8X8-LICENSE.txt`). Home widgets also accept a custom TTF via their theme.

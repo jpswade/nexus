@@ -23,7 +23,7 @@ fi
 cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
 cp "$SOURCE/feeds.py" "$DEST/feeds.py"
 cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$SOURCE/preparedness.py" "$SOURCE/preparedness_ui.py" "$DEST/"
-cp "$SOURCE/launch.py" "$SOURCE/terminal_theme.py" "$SOURCE/bitmap_font.py" "$SOURCE/home.example.json" "$DEST/"
+cp "$SOURCE/launch.py" "$SOURCE/terminal_theme.py" "$SOURCE/bitmap_font.py" "$SOURCE/cyber_graphics.py" "$SOURCE/home.example.json" "$DEST/"
 cp -R "$SOURCE/pi_dashboard" "$SOURCE/plugins" "$SOURCE/assets" "$DEST/"
 mkdir -p "$DEST/data"
 cp "$SOURCE/data/land.json" "$DEST/data/land.json"

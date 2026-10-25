@@ -167,14 +167,15 @@ def mono(value,x,y,size=12,color=(185,231,207)):
 
 def bevel(x,y,w,h,fill=PANEL,sunken=False):
     pygame.draw.rect(screen,PANEL,rect(x,y,w,h))
-    ascii_box(screen,rect(x,y,w,h),LINE)
+    pygame.draw.rect(screen,LINE,rect(x,y,w,h),max(1,round(S)))
+    line((x,y),(x+min(w,60),y),TEAL,2)
 
 def panel(x,y,w,h,label,tag):
     bevel(x,y,w,h)
-    text("[ "+label.upper()+" ]",x+16,y+15,18,TEXT)
+    text(label.upper(),x+16,y+15,18,TEAL)
     # Narrow panels reserve the heading for the section name.
     if w>650:text(tag.upper(),x+w-16,y+17,16,DIM,True)
-    text("-"*max(1,int((w-32)/8)),x+16,y+38,16,LINE)
+    line((x+16,y+38),(x+w-16,y+38),LINE)
 
 def bar(x,y,w,value,color):
     bevel(x,y,w,7,(176,182,180),True)
@@ -364,13 +365,9 @@ while running:
         return ('STALE / ' if stale else 'OBS / ')+age_label(age).upper()
 
     screen.blit(background,(0,0))
-    logo = ["#   # ##### #   # #   #  ####",
-            "##  # #      # #  #   # #    ",
-            "# # # ####    #   #   #  ### ",
-            "#  ## #      # #  #   #     #",
-            "#   # ##### #   #  ###  #### "]
-    for row, value in enumerate(logo):text(value,28,8+row*10,10,TEXT)
-    text('SYS> '+NAMES[workspace].upper(),300,27,22,DIM)
+    text('N E X U S',28,9,42,TEAL)
+    text('CIVIL / NETWORK CONSOLE',30,48,12,DIM)
+    text(NAMES[workspace].upper(),320,27,22,DIM)
     text(now.strftime('%H:%M:%S'),1252,18,32,TEXT,True)
     text(' '.join(f'[{i+1}]' if i==workspace else f' {i+1} ' for i in range(4)),28,64,20,TEXT)
     text('CMD> _' if int(epoch*2)%2 else 'CMD>',680,64,18,DIM)

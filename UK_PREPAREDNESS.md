@@ -44,7 +44,7 @@ Met Office warnings cover a region, not an individual postcode. The display call
 
 The app runs bounded background requests, retains the last successful data on failure, and displays unavailable/stale state. Last-check timestamps describe retrieval, not continuous verification. The source's own publication/update date is shown separately when available. The API is not a replacement for official warnings or emergency notification channels.
 
-The status screen emphasises the national assessment with a large, steady word and its plain-language meaning. The five-position strip highlights the official category; its numeric position is not a probability. Animated brackets, a scanner and a terminal indicator decorate the interface without cycling through threat levels. Space pauses these animations with workspace rotation. The primary O shortcut on this screen opens the national assessment; the weather source row remains clickable.
+The status screen emphasises the national assessment with a large, steady word and its plain-language meaning. The five-position strip highlights the official category; its numeric position is not a probability. Animated brackets and a rotating wireframe sphere with orbiting nodes decorate the interface without cycling through threat levels. The same sphere appears beside the midnight clock. Geometry is precomputed and rendering is bounded for the Pi 2; no shader or browser is required. Space pauses these animations with workspace rotation. The primary O shortcut on this screen opens the national assessment; the weather source row remains clickable.
 
 ## Checks and cached previews
 

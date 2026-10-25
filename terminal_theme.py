@@ -3,15 +3,15 @@ from pathlib import Path
 
 FONT = Path(__file__).resolve().parent / "assets/fonts/ShareTechMono-Regular.ttf"
 PALETTE = {
-    "background": "#000600", "panel": "#000600", "text": "#80ff70",
-    "muted": "#59bb51", "accent": "#a4ff88", "border": "#438c3e",
+    "background": "#050b17", "panel": "#091321", "text": "#c2f3fa",
+    "muted": "#689cae", "accent": "#55e6ed", "border": "#224759",
     "error": "#ffbf66",
 }
 
 
 def font(size):
-    from bitmap_font import BitmapFont
-    return BitmapFont(size)
+    import pygame
+    return pygame.font.Font(str(FONT), max(10, round(size)))
 
 
 def switch_view(view):

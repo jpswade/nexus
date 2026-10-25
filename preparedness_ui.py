@@ -3,6 +3,7 @@ import datetime as dt
 import textwrap
 from zoneinfo import ZoneInfo
 import math
+from cyber_graphics import draw_orb
 from preparedness import LINKS, MAX_AGES, LEVELS, source_status
 
 NAMES = ('UK status brief', 'Incident & cyber watch', 'Local readiness', 'Minutes to midnight')
@@ -59,8 +60,10 @@ class PreparednessDesktop:
         self.active_url = LINKS['prepare']
         u.panel(28, 105, 1224, 551, f'0{index+1} / '+NAMES[index].upper(), 'INDEPENDENT / PUBLIC SOURCES')
         # Animation belongs to the terminal chrome, never to the assessment.
-        sweep = int((age % 6) / 6 * 28)
-        u.text('DISPLAY ['+'.'*sweep+'>'+'.'*(27-sweep)+']', 760, 83, 12, u.DIM)
+        for i in range(18):
+            height=3+int(7*(1+math.sin(age*1.6+i*.65)))
+            u.line((775+i*8,94),(775+i*8,94-height),u.TEAL)
+        u.text('DISPLAY SYNC',930,80,14,u.DIM)
         if index == 0:
             sample = data.get('threat')
             stale = sample and ('threat' in errors or now-sample['fetched'] > MAX_AGES['threat'])
@@ -86,18 +89,13 @@ class PreparednessDesktop:
                 for y, dy in ((200, 1), (320, -1)):
                     u.line((x,y),(x+direction*28*extent,y),colour,2)
                     u.line((x,y),(x,y+dy*24*extent),colour,2)
-            u.text('OFFICIAL SCALE', 952, 200, 18, u.DIM)
-            u.text(f'{position:02}/05' if position else '--/05', 952, 232, 76, colour)
-            u.text('CATEGORY / NOT ODDS', 952, 319, 16, u.DIM)
-            # A slow scanner travels below the index; it is a display effect.
-            scanner = 952+int((math.sin(age*.9)+1)*126)
-            u.line((952,351),(1224,351),u.DIM)
-            u.line((scanner,345),(scanner,357),colour,2)
+            draw_orb(u, 1060, 296, 104, age)
+            u.text('TOPOLOGY / VISUAL FX', 945, 451, 16, u.DIM)
             for i, name in enumerate(LEVELS, 1):
-                x = 48+(i-1)*237
+                x = 48+(i-1)*163
                 selected = i == position
                 u.text(('>> ' if selected else '   ')+name.upper(), x, 375, 18, colour if selected else u.DIM)
-                u.text('[###########]' if selected else '[-----------]', x, 399, 18, colour if selected else u.DIM)
+                u.line((x,405),(x+140,405),colour if selected else u.DIM,4 if selected else 1)
             self.status('threat', data, errors, now, 431)
             self.source('GOV.UK / JTAC & MI5', LINKS['threat'], 456)
             u.line((48,490),(1230,490))
@@ -160,6 +158,8 @@ class PreparednessDesktop:
             local = dt.datetime.fromtimestamp(now, ZoneInfo('Europe/London'))
             u.text('TIME UNTIL LOCAL MIDNIGHT', 48, 162, 24, u.DIM)
             u.text(midnight_remaining(local), 48, 206, 132, u.TEXT)
+            draw_orb(u, 1070, 283, 100, age)
+            u.text('VISUAL FX', 1020, 437, 16, u.DIM)
             u.text('EUROPE/LONDON / '+local.strftime('%A %d %B %Y').upper(), 48, 365, 24, u.DIM)
             u.text('A CLOCK. NOT A THREAT SCORE OR A DISASTER FORECAST.', 48, 421, 23, u.AMBER)
             self.wrap('Be informed. Make a household plan. Keep useful supplies accessible. Follow official advice for your area.', 480, size=24, width=88, lines=2)

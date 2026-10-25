@@ -27,7 +27,7 @@ The config file is also watched every two seconds outside edit mode. Invalid rel
 
 Edit `home.json`. `timezone` is an IANA name such as `Europe/London`. `display` contains windowed `width` and `height`, `fullscreen` (uses the actual screen size), and input-polling `fps` (default 10). Rendering is once per second outside editing; seconds can be shown using `%H:%M:%S`.
 
-`theme` accepts `background`, `panel`, `text`, `muted`, `accent`, `border`, `error` as colour strings, and optional `font` as a TTF file path relative to the config. Each widget can override theme entries. The bundled public-domain 8×8 bitmap font is used by default; ASCII display text is uppercase. A custom TTF overrides it.
+`theme` accepts `background`, `panel`, `text`, `muted`, `accent`, `border`, `error` as colour strings, and optional `font` as a TTF file path relative to the config. Each widget can override theme entries. The bundled Share Tech Mono font is used by default. A custom TTF overrides it.
 
 Each entry in `widgets` has a unique `id`, `type`, `title`, `rect: [x, y, width, height]`, optional `enabled: false`, and `options`. Coordinates and dimensions range from 0 to 1 and must fit on screen. Duplicate any widget with a new ID to show multiple locations, clocks, or sources. All widgets accept `options.font_scale` (default 1).
 
@@ -98,7 +98,7 @@ Custom modules are ordinary trusted Python code, with the permissions of the use
 
 Both views are installed by the repository's `scripts/install.sh`; see [README.md](README.md) for Pi deployment. Run `python3 launch.py home` for this view, or `python3 launch.py nexus` for the security and observatory view. **F5** switches between them in the same service process. Save edits with **S** before switching; unsaved changes are discarded.
 
-The home view reads `home.json`. Its weather widget uses `location_source: "config.json"` to share Nexus's location. Explicit latitude and longitude in the widget options override that source. Set `NEXUS_HOME_CONFIG` to use an alternate home config across F5 switches. The default bitmap font and colours come from `terminal_theme.py`, with per-widget overrides still supported. The bundled Share Tech Mono font is distributed under the SIL Open Font License; see `assets/fonts/OFL.txt`.
+The home view reads `home.json`. Its weather widget uses `location_source: "config.json"` to share Nexus's location. Explicit latitude and longitude in the widget options override that source. Set `NEXUS_HOME_CONFIG` to use an alternate home config across F5 switches. The default font and colours come from `terminal_theme.py`, with per-widget overrides still supported. The bundled Share Tech Mono font is distributed under the SIL Open Font License; see `assets/fonts/OFL.txt`.
 
 ## Verification and limitations
 
