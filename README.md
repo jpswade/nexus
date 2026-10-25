@@ -171,3 +171,23 @@ The new layouts have been rendered at 1280×720 with SDL's dummy driver and chec
 `assets/fonts/ShareTechMono-Regular.ttf` comes from Google Fonts' Share Tech Mono distribution and is licensed under the included SIL Open Font License (`assets/fonts/OFL.txt`). Colours and font selection are shared in `terminal_theme.py`.
 
 The default renderer uses the bundled Share Tech Mono font. The optional `bitmap_font.py` renderer and public-domain IBM-derived `font8x8` data remain available for custom widgets (see `assets/fonts/FONT8X8-LICENSE.txt`). Home widgets also accept a custom TTF via their theme.
+
+## Automatic Pi updates
+
+After installing, run `sh scripts/enable-auto-update.sh` as the display user.
+The user timer checks the public `main` branch every five minutes (with up to
+30 seconds of jitter), validates the revision using the test suite, then installs
+and restarts the displays. No GitHub credentials or sudo are required. Local
+`config.json`, `home.json`, agenda data and caches are preserved. The preceding
+installation is stored privately in `~/.local/state/nexus-updater/previous` and
+restored if installation or the initial service health check fails. There is a
+brief display interruption during installation; the check is process health,
+not a physical screen inspection. Upstream code is trusted to run as this user.
+The timer runs while the user systemd manager is running (normally the desktop
+session); it does not independently enable lingering.
+
+Check with `systemctl --user status nexus-update.timer nexus-update.service`.
+Disable with `systemctl --user disable --now nexus-update.timer`.
+Run immediately with `systemctl --user start nexus-update.service`.
+The updater itself is installed explicitly by the enable script; rerun that
+script when updater changes are announced.
