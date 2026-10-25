@@ -123,10 +123,10 @@ class SecurityDesktop:
                 text(len(matches) if 'kev' in data else '--',878,390,33,u.TEAL)
                 text('PHP / PHP ecosystem entries',878,438,12,u.DIM)
                 for i,row in enumerate(matches[:3]):text(row['id']+' / '+row['product'][:18],878,468+i*22,10,u.TEXT)
-            if self.opening((28,574,1224,82),'Response note','USE VENDOR GUIDANCE',age,.7):
+            if self.opening((28,574,1224,90),'Response note','USE VENDOR GUIDANCE',age,.7):
                 note=kev[int(age/8)%min(6,len(kev))] if kev else None
                 message=(note['id']+' / '+note['action']) if note else 'Awaiting CISA response guidance.'
-                self.wrap(message,44,612,180,11,lines=2)
+                self.wrap(message,44,612,180,11,lines=3)
 
     def terminal(self,index,age,data,errors,now,key,forced=False):
         u=self.u
