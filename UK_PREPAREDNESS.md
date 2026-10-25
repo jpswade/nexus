@@ -72,3 +72,38 @@ It continues across automatic workspace changes. Space pauses animation; Page Up
 and Page Down (or the mouse wheel) browse the transcript, and End returns to replay.
 Click a headline to open its original source. Source check times and stale status
 remain visible. The Doomsday Clock remains the fixed published setting.
+
+### MPI3501 companion LCD
+
+`companion.py` renders a separate 480×320 Pygame view directly to the ILI9486
+RGB565 framebuffer, without changing the HDMI desktop. It checks the framebuffer
+name, dimensions, offsets, colour masks and stride before writing. It runs at two
+frames per second and reloads the main dashboard's location-specific cache every
+10 seconds, without additional network requests. Cached assessments and stale
+sources are labelled; the clock uses the same dated Bulletin record as the main UI.
+Touch navigation is not implemented.
+
+For the tested MPI3501 board, first load the driver temporarily on the Pi:
+
+```sh
+sudo dtoverlay piscreen speed=16000000 rotate=270 fps=10
+```
+
+After installing the repository with `scripts/install.sh`, start the companion:
+
+```sh
+systemctl --user daemon-reload
+systemctl --user enable --now nexus-companion.service
+```
+
+Once the physical screen is confirmed working, persist the driver:
+
+```sh
+sudo sh ~/dashboard/enable-companion-boot.sh
+```
+
+This backs up `/boot/firmware/config.txt` and appends an SPI/piscreen section.
+It does not reboot or remove the HDMI configuration. A reboot remains untested
+until performed on the hardware. To stop the companion, use
+`systemctl --user disable --now nexus-companion.service`. Restore the dated boot
+configuration backup to remove the persistent overlay.
