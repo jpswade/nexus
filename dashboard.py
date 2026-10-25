@@ -95,13 +95,15 @@ try:
     screen = pygame.display.set_mode((1280, 720), pygame.FULLSCREEN | pygame.SCALED, vsync=1)
 except pygame.error:
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-pygame.display.set_caption('NEXUS // Planetary observatory')
+pygame.display.set_caption('Nexus — Observatory desktop')
 pygame.mouse.set_visible(False)
 W, H = screen.get_size()
 S = min(W/1280, H/720)
 OX, OY = (W-1280*S)/2, (H-720*S)/2
-BG=(5,11,16); PANEL=(9,19,26); LINE=(27,48,59)
-TEXT=(221,239,240); DIM=(113,145,156); TEAL=(64,221,205); LIME=(192,243,111); BLUE=(78,146,201); AMBER=(244,174,100)
+# BeOS-inspired chrome: yellow tabs, warm grey controls and a teal desktop.
+BG=(47,104,119); PANEL=(219,220,216); LINE=(102,105,105)
+TEXT=(28,32,35); DIM=(83,89,93); TEAL=(17,94,137); LIME=(36,102,65); BLUE=(51,99,163); AMBER=(165,66,24)
+TAB=(255,218,67); WHITE=(250,250,243); SHADOW=(32,67,78)
 fonts = {}
 labels = collections.OrderedDict()
 
@@ -113,24 +115,42 @@ def text(value,x,y,size=12,color=TEXT,right=False):
     value=str(value)
     key=(value,size,color)
     if key not in labels:
-        if size not in fonts: fonts[size]=pygame.font.SysFont('dejavusansmono',max(10,round(size*S)))
+        if size not in fonts: fonts[size]=pygame.font.SysFont('dejavusansmono' if size>=18 else 'dejavusans',max(9,round(size*S)))
         labels[key]=fonts[size].render(value,True,color)
         if len(labels)>450: labels.popitem(last=False)
     image=labels[key]
     xx,yy=pos(x,y)
     screen.blit(image,(xx-image.get_width() if right else xx,yy))
 
+def bevel(x,y,w,h,fill=PANEL,sunken=False):
+    pygame.draw.rect(screen,fill,rect(x,y,w,h))
+    light,dark=((100,105,107),WHITE) if sunken else (WHITE,(91,95,97))
+    line((x,y),(x+w-1,y),light)
+    line((x,y),(x,y+h-1),light)
+    line((x,y+h-1),(x+w-1,y+h-1),dark)
+    line((x+w-1,y),(x+w-1,y+h-1),dark)
+
 def panel(x,y,w,h,label,tag):
-    pygame.draw.rect(screen,PANEL,rect(x,y,w,h))
-    pygame.draw.rect(screen,LINE,rect(x,y,w,h),max(1,round(S)))
-    line((x,y),(x+22,y),TEAL,2)
-    line((x,y),(x,y+12),TEAL,2)
-    text(label,x+16,y+13,11,DIM)
-    text(tag,x+w-15,y+13,10,TEAL,True)
+    pygame.draw.rect(screen,SHADOW,rect(x+4,y+4,w,h))
+    bevel(x,y,w,h)
+    # A short yellow title tab rather than a full-width title bar.
+    title=label.title().replace('Iss','ISS').replace('Noaa','NOAA')
+    tabwidth=min(w-8,max(116,len(title)*6.7+39))
+    bevel(x,y-19,tabwidth,20,TAB)
+    bevel(x+7,y-14,10,10,(244,201,49))
+    text(title,x+25,y-16,11,TEXT)
+    for k in range(3):
+        line((x+tabwidth-12+k*2,y-13),(x+tabwidth-12+k*2,y-6),(160,128,25))
+    text(tag,x+w-12,y+11,9,DIM,True)
+    line((x+10,y+29),(x+w-10,y+29),(177,181,179))
+    line((x+10,y+30),(x+w-10,y+30),WHITE)
+    # Familiar resize-grip detail in the lower-right corner.
+    for i in range(3):
+        line((x+w-5-i*4,y+h-4),(x+w-4,y+h-5-i*4),(140,144,142))
 
 def bar(x,y,w,value,color):
-    pygame.draw.rect(screen,(20,37,46),rect(x,y,w,4))
-    pygame.draw.rect(screen,color,rect(x,y,w*max(0,min(100,value))/100,4))
+    bevel(x,y,w,7,(176,182,180),True)
+    pygame.draw.rect(screen,color,rect(x+1,y+1,max(0,(w-2)*max(0,min(100,value))/100),5))
 
 def vector(lon,lat):
     lon,lat=math.radians(lon),math.radians(lat)
@@ -142,8 +162,9 @@ grid = [[vector(lon,lat) for lon in range(-180,181,5)] for lat in range(-60,61,3
 grid += [[vector(lon,lat) for lat in range(-90,91,5)] for lon in range(-180,180,30)]
 
 screen.fill(BG)
-for x in range(28,1260,32):
-    for y in range(86,680,32): circle(x,y,.6,(18,33,41))
+# Subtle desktop pinstripes, drawn once rather than on each frame.
+for y in range(0,720,4):line((0,y),(1280,y),(46,101,116))
+bevel(28,672,1224,29,(209,212,209))
 background=screen.copy()
 running=True
 paused=False
@@ -187,30 +208,38 @@ while running:
         return ('STALE / ' if stale else 'OBS / ')+age_label(age).upper()
 
     screen.blit(background,(0,0))
-    text('N E X U S',28,22,24,TEXT)
-    text('// PLANETARY OBSERVATORY',203,32,11,DIM)
+    bevel(28,18,32,32,(29,69,113))
+    text('N',35,20,23,TAB)
+    text('Nexus',72,14,27,WHITE)
+    text('Planetary observatory  /  desktop edition',74,49,12,(217,235,231))
+    # A compact Deskbar-inspired status tray.
+    bevel(1016,14,236,56)
+    bevel(1021,19,72,23,TAB)
+    text('NEXUS',1030,23,11,TEXT)
+    text(now.strftime('%H:%M:%S'),1238,23,12,TEXT,True)
     count=len(feeds)
-    circle(1044,38,3,LIME if count==4 and not errors else AMBER)
-    text(f'{count}/4 PUBLIC FEEDS',1057,30,12,LIME if count==4 else DIM)
-    line((28,68),(1252,68))
-    text('EARTH / ORBIT / SOLAR WEATHER',28,79,10,DIM)
-    text('EUROPE/LONDON',1252,79,10,DIM,True)
+    circle(1030,55,3,LIME if count==4 and not errors else AMBER)
+    text(f'{count} of 4 feeds connected',1042,47,11,DIM)
+    for i in range(4):
+        bevel(862+i*30,21,25,21,TAB if i==0 else (175,196,197),i==0)
+        text(str(i+1),870+i*30,24,10,TEXT)
+    text('Workspace',861,48,10,(217,235,231))
 
-    panel(28,105,320,184,'LOCAL TIME','UTC'+now.astimezone().strftime('%z'))
+    panel(28,105,320,184,'Time & date','UTC'+now.astimezone().strftime('%z'))
     text(now.strftime('%H:%M'),44,137,62,TEXT)
     text(now.strftime('%S'),306,177,18,TEAL,True)
     text(now.strftime('%A').upper(),46,222,12,LIME)
     text(now.strftime('%d %b %Y').upper(),46,246,13,DIM)
     bar(220,253,108,now.second/60*100,TEAL)
 
-    panel(28,307,320,247,'SPACE WEATHER','NOAA / SWPC')
+    panel(28,307,320,247,'Solar monitor','NOAA / SWPC')
     text('PLANETARY Kp INDEX',44,346,11,DIM)
     if kp:
         text(f'{kp["value"]:.2f}',44,366,42,TEXT)
         activity='STORM LEVEL' if kp['value']>=5 else 'UNSETTLED' if kp['value']>=4 else 'QUIET'
         text(activity,330,391,11,AMBER if kp['value']>=4 else LIME,True)
         for i in range(9):
-            color=TEAL if i<kp['value'] else (23,44,53)
+            color=TEAL if i<kp['value'] else (174,181,178)
             pygame.draw.rect(screen,color,rect(44+i*32,423,26,7))
         text(stamp('kp'),44,441,9,DIM)
     else:
@@ -220,7 +249,7 @@ while running:
     text(stamp('wind'),44,510,9,AMBER if wind and epoch-wind['observed']>MAX_AGES['wind'] else DIM)
     text('Kp 0-9 / GEOMAGNETIC ACTIVITY',44,533,9,DIM)
 
-    panel(366,105,540,449,'EARTH / ORBITAL FIELD','ISS + SEISMIC')
+    panel(366,105,540,449,'Orbital navigator','ISS + SEISMIC')
     cx,cy,radius=636,326,169
     target=(iss['longitude']-25 if iss else 0)+18*math.sin(t*.045)
     if camera_lon is None or (iss and not camera_has_iss):
@@ -248,37 +277,39 @@ while running:
                 points=[]
         if len(points)>1:pygame.draw.lines(screen,color,False,points,max(1,round(S)))
 
-    circle(cx,cy,radius+13,(18,39,48),1)
-    circle(cx,cy,radius,(41,82,93),1)
-    for ring in grid:globe_lines(ring,(23,49,60))
-    for ring in coast:globe_lines(ring,(58,115,123))
+    circle(cx+2,cy+3,radius+2,(132,140,141))
+    circle(cx,cy,radius+13,(157,166,165),1)
+    circle(cx,cy,radius,(18,47,76))
+    circle(cx,cy,radius,(7,31,53),1)
+    for ring in grid:globe_lines(ring,(40,78,108))
+    for ring in coast:globe_lines(ring,(133,193,188))
     for index,quake in enumerate(earthquakes):
         x,y,z=project(vector(quake['lon'],quake['lat']))
         if z>0:
-            circle(x,y,2+max(0,quake['mag']-3)*.7,AMBER)
+            circle(x,y,2+max(0,quake['mag']-3)*.7,(255,159,65))
             pulse=(t*.35+index*.17)%1
-            circle(x,y,4+pulse*10,(int(105-55*pulse),int(76-40*pulse),int(44-20*pulse)),1)
+            circle(x,y,4+pulse*10,(int(205-95*pulse),int(144-65*pulse),int(70-25*pulse)),1)
     if iss:
         ix,iy,iz=project(vector(iss['longitude'],iss['latitude']))
         if iz>0:
-            circle(ix,iy,10+3*math.sin(t*2),TEAL,1)
-            circle(ix,iy,4,LIME)
-            line((ix+9,iy-9),(ix+27,iy-27),TEAL)
-            text('ISS',ix+30,iy-39,12,LIME)
+            circle(ix,iy,10+3*math.sin(t*2),TAB,1)
+            circle(ix,iy,4,TAB)
+            line((ix+9,iy-9),(ix+27,iy-27),TAB)
+            text('ISS',ix+30,iy-39,12,TAB)
         text(f'{iss["latitude"]:+06.2f} LAT / {iss["longitude"]:+07.2f} LON',386,477,11,TEAL)
     else:
         text('AWAITING ORBITAL POSITION',386,477,11,DIM)
-    text('AMBER / M2.5+ QUAKES',386,503,9,AMBER)
-    text('LIME / ISS POSITION',386,523,9,LIME)
+    text('Orange: M2.5+ earthquakes',386,503,9,AMBER)
+    text('Yellow: ISS position',386,523,9,LIME)
     text(stamp('iss'),887,523,9,DIM,True)
 
-    panel(924,105,328,184,'WEATHER / '+str(LOCATION.get('name','LOCAL')).upper()[:18],'LOCAL')
+    panel(924,105,328,184,'Weather / '+str(LOCATION.get('name','LOCAL')).upper()[:18],'LOCAL')
     sample=weather
     if sample:
         stale=weather_failed or epoch-sample['fetched']>1800
         text(f'{sample["temp"]:.0f}°',940,139,50,TEXT)
         wx,wy=1204,178
-        circle(wx,wy,23,(24,56,62),1)
+        circle(wx,wy,23,(180,184,177),1)
         circle(wx,wy,12,TEAL,1)
         for k in range(8):
             a=t*.12+k*math.pi/4
@@ -292,7 +323,7 @@ while running:
         text('WEATHER OFFLINE' if weather_failed else 'ACQUIRING WEATHER',940,160,16,DIM)
         text('RETRYING IN BACKGROUND',940,215,11,DIM)
 
-    panel(924,307,328,247,'SEISMIC ACTIVITY','USGS / 24H')
+    panel(924,307,328,247,'Seismic monitor','USGS / 24H')
     if quakes:
         text(str(len(earthquakes)),940,343,43,TEXT)
         text('M2.5+ EVENTS',1236,373,11,DIM,True)
@@ -310,7 +341,7 @@ while running:
         text(stamp('quakes'),940,365,13,DIM)
     text(stamp('quakes'),940,531,9,DIM)
 
-    panel(28,573,1224,83,'INTERNATIONAL SPACE STATION','WHERE THE ISS AT? / 20s')
+    panel(28,573,1224,83,'International Space Station','WHERE THE ISS AT? / 20s')
     if iss:
         period=2*math.pi*math.sqrt((6371+iss['altitude'])**3/398600.4418)/60
         for x,label,value in [
@@ -329,14 +360,14 @@ while running:
     if wind:facts.append(f'SOLAR WIND {wind["value"]:.0f} KM/S / {stamp("wind")}')
     ticker='    +++    '.join(facts)+'    +++    '
     clip=screen.get_clip()
-    screen.set_clip(rect(28,673,950,24))
+    screen.set_clip(rect(36,676,940,20))
     if 10 not in fonts:fonts[10]=pygame.font.SysFont('dejavusansmono',max(10,round(10*S)))
     span=fonts[10].size(ticker)[0]/S
     offset=(t*34)%span
-    text(ticker,28-offset,677,10,DIM)
-    text(ticker,28-offset+span,677,10,DIM)
+    text(ticker,36-offset,677,10,DIM)
+    text(ticker,36-offset+span,677,10,DIM)
     screen.set_clip(clip)
-    text('SPACE PAUSE / ESC EXIT',1252,677,10,DIM,True)
+    text('Space: pause  /  Esc: exit',1240,677,10,DIM,True)
     pygame.display.flip()
     clock.tick(12)
     frame+=1

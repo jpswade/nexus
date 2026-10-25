@@ -1,6 +1,6 @@
 # NEXUS
 
-An animated planetary observatory for a Raspberry Pi and an HDMI monitor. A rotating globe, orbital statistics and natural events, built with Python and Pygame.
+An animated planetary observatory for a Raspberry Pi and an HDMI monitor. A rotating globe, orbital statistics and natural events, built with Python and Pygame. The interface takes its cues from BeOS: short yellow title tabs, bevelled grey windows, a teal desktop and a compact Deskbar-style status tray.
 
 ## What it does
 
