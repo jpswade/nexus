@@ -374,15 +374,16 @@ while running:
     text('CIVIL / NETWORK CONSOLE',30,48,12,DIM)
     text(NAMES[workspace].upper(),320,27,22,DIM)
     text(now.strftime('%H:%M:%S'),1252,18,32,TEXT,True)
-    text(' '.join(f'[{i+1}]' if i==workspace else f' {i+1} ' for i in range(4)),28,64,20,TEXT)
-    text('CMD> _' if int(epoch*2)%2 else 'CMD>',680,64,18,DIM)
-    mode=f'AUTO / {max(0,int(cycle.duration-age))}s' if cycle.automatic else 'MANUAL'
-    text(mode,420,64,20,DIM)
-    count=len(uk_data) if ARGS.profile=='uk' else len(feeds)+len(security_data)
-    total=len(preparedness.urls) if ARGS.profile=='uk' else 7
-    failed=uk_errors if ARGS.profile=='uk' else errors|security_errors
-    text(f'{count}/{total} SOURCES' + (' / RETRYING' if failed else ''),1252,64,20,
-         AMBER if failed else DIM,True)
+    if ARGS.profile!='uk':
+        text(' '.join(f'[{i+1}]' if i==workspace else f' {i+1} ' for i in range(4)),28,64,20,TEXT)
+        text('CMD> _' if int(epoch*2)%2 else 'CMD>',680,64,18,DIM)
+        mode=f'AUTO / {max(0,int(cycle.duration-age))}s' if cycle.automatic else 'MANUAL'
+        text(mode,420,64,20,DIM)
+        count=len(uk_data) if ARGS.profile=='uk' else len(feeds)+len(security_data)
+        total=len(preparedness.urls) if ARGS.profile=='uk' else 7
+        failed=uk_errors if ARGS.profile=='uk' else errors|security_errors
+        text(f'{count}/{total} SOURCES' + (' / RETRYING' if failed else ''),1252,64,20,
+             AMBER if failed else DIM,True)
     briefing_age=7.65+(t-terminal_since) if manual_terminal else age
     # Briefings replace the main view instead of covering it with a popup.
     show_brief=manual_terminal and not terminal_hidden

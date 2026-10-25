@@ -23,6 +23,7 @@ fi
 cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
 cp "$SOURCE/feeds.py" "$DEST/feeds.py"
 cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$SOURCE/preparedness.py" "$SOURCE/preparedness_ui.py" "$DEST/"
+cp "$SOURCE/status_summary.py" "$DEST/"
 cp "$SOURCE/companion.py" "$DEST/"
 cp "$SOURCE/scripts/enable-companion-boot.sh" "$DEST/"
 cp "$SOURCE/deploy/nexus-companion.service" "$HOME/.config/systemd/user/"

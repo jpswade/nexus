@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import math
 from cyber_graphics import draw_orb
+from status_summary import summary
 from preparedness import LINKS, MAX_AGES, LEVELS, source_status
 
 NAMES = ('UK status brief', 'Incident & cyber watch', 'Local readiness', 'Minutes to midnight')
@@ -134,10 +135,11 @@ class PreparednessDesktop:
         self.links = []
         self.active_url = LINKS['prepare']
         u.panel(28, 105, 802, 551, f'0{index+1} / '+NAMES[index].upper(), 'UK / PUBLIC SOURCES')
-        for i in range(18):
-            height=3+int(7*(1+math.sin(age*1.6+i*.65)))
-            u.line((775+i*8,94),(775+i*8,94-height),u.TEAL)
-        u.text('DISPLAY SYNC',930,80,14,u.DIM)
+        u.text('UK THREAT / '+summary('threat', data, now, errors),28,72,18,u.AMBER)
+        u.text('WEATHER / '+summary('weather', data, now, errors),410,72,17,u.TEAL)
+        u.text('FLOODS / '+summary('floods', data, now, errors),780,72,17,u.TEAL)
+        setting = self.doomsday
+        u.text('DOOMSDAY / '+(str(setting['seconds_to_midnight'])+'s' if setting else '--'),1080,72,17,u.AMBER)
         self.stream(age if stream_age is None else stream_age, data, errors, now)
         # Common secondary readouts keep the wider situation in every workspace.
         u.line((48, 502), (810, 502), u.DIM)

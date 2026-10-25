@@ -11,6 +11,7 @@ import pygame
 from preparedness import PreparednessFeeds, MAX_AGES
 from preparedness_ui import load_doomsday_setting
 from terminal_theme import font, PALETTE
+from status_summary import summary
 
 ROOT = Path(__file__).resolve().parent
 
@@ -62,6 +63,10 @@ class Companion:
             if face.size(value)[0] <= width or size <= 12:
                 break
             size -= 1
+        if face.size(value)[0] > width:
+            while value and face.size(value+'...')[0] > width:
+                value = value[:-1]
+            value += '...'
         self.surface.blit(face.render(value, True, PALETTE[colour]), (x, y))
 
     def lines(self, value, y, limit=3):
@@ -90,24 +95,29 @@ class Companion:
         self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'), 370, 8, 19, 'accent', 100)
         threat = data.get('threat')
         self.text('UK TERRORISM / GOV.UK', 12, 37, 16, 'muted')
-        self.text(threat['level'].upper() if threat else 'UNAVAILABLE', 12, 55, 66, 'error')
+        self.text(threat['level'].upper() if threat else 'UNAVAILABLE', 12, 55, 48, 'error')
         stamp = dt.datetime.fromtimestamp(threat['fetched'], dt.timezone.utc).strftime('%d %b %H:%M UTC') if threat else '--'
         stale = not threat or now-threat['fetched'] > MAX_AGES['threat']
-        self.text(('STALE / CHECK ' if stale else 'CACHED / CHECK ')+stamp, 12, 124, 15, 'error' if stale else 'muted')
-        pygame.draw.line(self.surface, PALETTE['border'], (12, 148), (468, 148))
+        self.text(('STALE / CHECK ' if stale else 'CACHED / CHECK ')+stamp, 12, 106, 14, 'error' if stale else 'muted')
+        pygame.draw.line(self.surface, PALETTE['border'], (12, 127), (468, 127))
         setting = self.setting
         seconds = str(setting['seconds_to_midnight']) if setting else '--'
-        self.text(seconds+'s TO MIDNIGHT', 12, 157, 25, 'error', 260)
-        self.text('DOOMSDAY CLOCK', 286, 154, 17, 'accent', 182)
-        self.text('BULLETIN / '+(setting['announced'] if setting else 'UNAVAILABLE'), 286, 176, 13, 'muted', 182)
-        name = ('weather', 'floods', 'ncsc', 'news')[int(age/15)%4]
-        label = {'weather':'MET OFFICE', 'floods':'EA / '+scope, 'ncsc':'NCSC / PUBLICATION', 'news':'BBC / MEDIA REPORT'}[name]
+        self.text('DOOMSDAY / '+seconds+'s',12,134,20,'error',240)
+        self.text('BULLETIN / '+(setting['announced'] if setting else '--'),250,137,14,'muted',218)
+        self.text('MET OFFICE / '+summary('weather',data,now),12,163,19,'accent')
+        weather = data.get('weather', {})
+        warnings = weather.get('items', [])
+        rank = {'red':3, 'amber':2, 'yellow':1}
+        highest = max(warnings, key=lambda item: rank.get(item.get('colour'),0), default=None)
+        self.lines(highest['title'] if highest else ('No bulletins returned' if weather else 'Weather source unavailable'),186,limit=2)
+        self.text('EA FLOODS / '+summary('floods',data,now),12,237,19,'accent')
+        name = ('ncsc', 'news')[int(age/15)%2]
+        label = 'NCSC' if name == 'ncsc' else 'BBC'
         sample = data.get(name)
         stale = not sample or now-sample['fetched'] > MAX_AGES[name]
-        self.text(label.upper()+(' / STALE' if stale else ''), 12, 202, 16, 'accent')
         items = sample.get('items', []) if sample else []
-        item = items[int(age/60)%len(items)] if items else None
-        self.lines(item['title'] if item else ('No items returned; check source' if sample else 'Source unavailable'), 227)
+        item = items[int(age/30)%len(items)] if items else None
+        self.text(label+(' [STALE]' if stale else '')+' / '+(item['title'] if item else 'No publication available'),12,272,17,'muted')
         pygame.draw.line(self.surface, PALETTE['border'], (12, 310), (468, 310))
         x = 12+int(age%15/15*440)
         pygame.draw.line(self.surface, PALETTE['accent'], (x, 310), (min(x+16,468), 310), 2)

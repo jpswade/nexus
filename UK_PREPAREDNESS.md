@@ -107,3 +107,10 @@ It does not reboot or remove the HDMI configuration. A reboot remains untested
 until performed on the hardware. To stop the companion, use
 `systemctl --user disable --now nexus-companion.service`. Restore the dated boot
 configuration backup to remove the persistent overlay.
+
+Both physical displays keep time, UK terrorism assessment, weather bulletin summary,
+flood alert count and the published Doomsday Clock visible. All four UK workspaces
+share the same status strip. Weather colour is the highest colour returned by the
+feed, not an inference that every warning applies at the current instant. Original
+source area and validity checks still apply. The LCD keeps weather details fixed
+and rotates only its secondary news line.
