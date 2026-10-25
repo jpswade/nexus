@@ -119,7 +119,7 @@ class PreparednessTests(unittest.TestCase):
         for age, now in [(0, 0), (30, 3600), (60, 86400)]:
             calls.clear()
             view.draw(3, age, {}, set(), now)
-            self.assertEqual([c[0] for c in calls if len(c)>3 and c[3]==72], ['85'])
+            self.assertEqual([c[0] for c in calls if len(c)>3 and c[3]==36], ['85'])
             self.assertEqual(view.active_url, record['url'])
         with tempfile.TemporaryDirectory() as directory:
             invalid = Path(directory)/'setting.json'

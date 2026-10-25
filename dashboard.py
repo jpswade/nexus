@@ -90,7 +90,7 @@ def fetch_weather():
             print(f"Weather update failed: {error}", flush=True)
         time.sleep(600 if not weather_failed else 60)
 
-if not ARGS.snapshot and ARGS.profile == "technical":
+if not ARGS.snapshot:
     threading.Thread(target=fetch_weather, daemon=True).start()
 
 import collections
@@ -391,6 +391,8 @@ while running:
     # Briefings replace the main view instead of covering it with a popup.
     show_brief=manual_terminal and not terminal_hidden
     if ARGS.profile=='uk':
+        prepared_ui.local_weather=weather
+        prepared_ui.weather_failed=weather_failed
         prepared_ui.draw(workspace,age,uk_data,uk_errors,epoch,stream_age=t)
     elif show_brief:
         desktop.terminal(workspace,briefing_age,security_data,security_errors,epoch,

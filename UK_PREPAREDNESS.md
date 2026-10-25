@@ -129,3 +129,15 @@ Map data: Natural Earth, public domain,
 https://www.naturalearthdata.com/about/terms-of-use/
 Source: https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_50m_admin_0_countries.geojson
 Only UK and Ireland geometries are bundled in `data/uk-map.geojson`.
+
+### Restored observatory composition
+
+The default layout follows the original Nexus clips: rotating geographic globe
+centrally, large local clock and official threat assessment at left, current
+Open-Meteo temperature plus Met Office bulletins and flood summary at right.
+Doomsday and a two-line scrolling briefing occupy the bottom strip. The clock,
+weather, threat and flood readouts remain visible during all UK workspace changes.
+Workspace 3 shows the UK map in the central instrument area. The globe uses the
+existing Natural Earth coastline data and marks only the configured location,
+not inferred incidents. Motion remains paused with Space; transcript history
+controls are unchanged. Local temperature refresh now also runs in the UK profile.
