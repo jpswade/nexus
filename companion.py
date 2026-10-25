@@ -146,6 +146,9 @@ def main():
     parser.add_argument('--snapshot')
     args = parser.parse_args()
     config = json.loads(Path(os.environ.get('NEXUS_CONFIG', ROOT/'config.json')).read_text())
+    rotation = config.get('companion_rotation', 0)
+    if rotation not in (0, 180):
+        raise ValueError('companion_rotation must be 0 or 180 degrees')
     cache = Path(os.environ.get('NEXUS_CACHE', ROOT/'.cache'))/'preparedness'
     view = Companion()
     target = None if args.snapshot else Framebuffer(args.device or find_lcd())
@@ -158,6 +161,8 @@ def main():
             data, _ = feeds.snapshot()
             refreshed = age
         surface = view.draw(data, time.time(), age, feeds.flood_scope)
+        if rotation == 180:
+            surface = pygame.transform.rotate(surface, 180)
         if args.snapshot:
             pygame.image.save(surface, args.snapshot)
             return

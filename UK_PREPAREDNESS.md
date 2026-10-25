@@ -197,3 +197,5 @@ last known warning with a STALE label. News headlines do not trigger alarms.
 Space freezes animation; data refresh and warning lifecycle continue. The strip
 replaces footer telemetry while warnings are present. Click it or press O to
 open the displayed warning. The Home and technical profiles retain their own UI.
+
+Set `"companion_rotation": 180` in your private `config.json` to turn the small LCD upside down (default `0`). Restart `nexus-companion.service` after changing it. This leaves HDMI orientation unchanged and survives updates.
