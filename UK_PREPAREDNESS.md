@@ -151,3 +151,8 @@ right column again. It advances one complete line every four seconds, without
 typewriter truncation; up to 18 lines remain visible. Space pauses, Page Up/Down
 browse history, and End returns to automatic replay. The globe remains available
 in the technical observatory (F6).
+
+The map uses a perspective camera with gentle yaw/tilt drift, a ground grid,
+shadow and uniformly raised country surfaces. This is decorative extrusion, not
+measured terrain or risk height. The location marker uses the same projection as
+the coastline. Geometry is cached at four frames per second to limit Pi CPU use.
