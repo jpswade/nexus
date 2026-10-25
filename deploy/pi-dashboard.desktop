@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=NEXUS Dashboard
+Exec=/usr/bin/systemctl --user start pi-dashboard.service
+Terminal=false
+X-GNOME-Autostart-enabled=true

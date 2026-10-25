@@ -1,0 +1,8 @@
+config.json
+.cache/
+__pycache__/
+*.py[cod]
+*.log
+preview*.png
+.DS_Store
+.venv/
