@@ -8,7 +8,7 @@ from cyber_graphics import draw_orb
 from status_summary import summary
 from preparedness import LINKS, MAX_AGES, LEVELS, source_status
 
-NAMES = ('UK situation console', 'Incident & cyber watch', 'Local readiness', 'Minutes to midnight')
+NAMES = ('UK situation console', 'Incident & cyber watch', 'UK situation map', 'Minutes to midnight')
 PREPARE_TIPS = (
     'Keep important contact numbers on paper and agree a household emergency plan.',
     'Check your smoke alarms monthly. Review the support needs of people you care for.',
@@ -138,6 +138,37 @@ class PreparednessDesktop:
         u.text('HISTORY' if offset else 'AUTO REPLAY / 4 SECONDS PER LINE',854,624,15,u.TEAL)
         u.text('SPACE PAUSE / PGUP / PGDN / END',854,645,12,u.DIM)
 
+    def briefing_cards(self, age, data, errors, now):
+        u=self.u
+        rows=data.get('weather',{}).get('items',[])
+        rank={'red':3,'amber':2,'yellow':1}
+        item=max(rows,key=lambda row:rank.get(row.get('colour'),0),default=None)
+        u.panel(324,105,500,160,'WEATHER WARNING / MET OFFICE','')
+        self.paragraphs(item['title'] if item else ('No weather bulletins returned' if 'weather' in data else 'Weather source unavailable'),340,154,46,20,2,u.AMBER)
+        issued=dt.datetime.fromtimestamp(item['published'],dt.timezone.utc).strftime('%d %b %H:%M UTC') if item and item.get('published') else 'NOT PROVIDED'
+        u.text('ISSUED '+issued+' / CHECK VALIDITY AT SOURCE',340,215,12,u.DIM)
+        u.text(source_status('weather',data,errors,now),340,242,13,u.DIM)
+        self.links.append(((324,145,500,120),item['url'] if item else LINKS['weather']))
+        u.panel(324,277,500,125,'LOCAL FLOOD DETAILS / ENVIRONMENT AGENCY','')
+        sample=data.get('floods')
+        items=sample.get('items',[]) if sample else []
+        flood=items[int(age/20)%len(items)] if items else None
+        title=(flood['label']+' / '+flood['title']) if flood else ('No alerts returned / not an all-clear' if sample else 'Flood source unavailable')
+        self.paragraphs(title,340,325,47,18,2)
+        u.text(source_status('floods',data,errors,now),340,382,12,u.DIM)
+        self.links.append(((324,317,500,85),flood['url'] if flood else LINKS['floods']))
+        name='ncsc' if int(age/20)%2==0 else 'news'
+        label='NCSC / OFFICIAL PUBLICATION' if name=='ncsc' else 'BBC / MEDIA REPORT'
+        items=data.get(name,{}).get('items',[])
+        item=items[int(age/40)%len(items)] if items else None
+        u.panel(324,414,500,138,label,'')
+        self.paragraphs(item['title'] if item else ('No matching publications' if name in data else 'Source unavailable'),340,460,46,19,2)
+        published=dt.datetime.fromtimestamp(item['published'],dt.timezone.utc).strftime('%d %b %Y %H:%M UTC') if item and item.get('published') else 'DATE NOT PROVIDED'
+        stale=not data.get(name) or name in errors or now-data[name]['fetched']>MAX_AGES[name]
+        u.text(published+(' / STALE' if stale else ''),340,530,13,u.DIM)
+        self.active_url=item['url'] if item else LINKS[name]
+        self.links.append(((324,454,500,98),self.active_url))
+
     def draw(self, index, age, data, errors, now, stream_age=None):
         u = self.u
         self.links = []
@@ -167,15 +198,14 @@ class PreparednessDesktop:
         self.paragraphs(source_status('threat',data,errors,now),44,509,30,14,2,u.DIM)
         self.links.append(((28,286,280,266),LINKS['threat']))
         self.active_url=LINKS['threat']
-        u.panel(324,105,500,447,'UK / SITUATION MAP','')
-        if self.map:
-            import pygame
-            u.blit(pygame.transform.smoothscale(self.map.draw(age),(350,350)),399,150)
-        rows=data.get('weather',{}).get('items',[])
-        rank={'red':3,'amber':2,'yellow':1}
-        item=max(rows,key=lambda item:rank.get(item.get('colour'),0),default=None)
-        self.paragraphs(item['title'] if item else ('No weather bulletins returned' if 'weather' in data else 'Weather source unavailable'),340,501,47,17,2,u.AMBER)
-        self.links.append(((324,495,500,57),item['url'] if item else LINKS['weather']))
+        if index==2:
+            u.panel(324,105,500,447,'UK / SITUATION MAP','')
+            if self.map:
+                import pygame
+                u.blit(pygame.transform.smoothscale(self.map.draw(age),(350,350)),399,150)
+            u.text('CONFIGURED AREA / GEOGRAPHIC CONTEXT',340,510,17,u.DIM)
+        else:
+            self.briefing_cards(age,data,errors,now)
         u.panel(324,565,244,91,'WEATHER / MET OFFICE','')
         weather=self.local_weather
         stale=weather and (self.weather_failed or now-weather['fetched']>1800)

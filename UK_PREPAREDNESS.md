@@ -156,3 +156,10 @@ The map uses a perspective camera with gentle yaw/tilt drift, a ground grid,
 shadow and uniformly raised country surfaces. This is decorative extrusion, not
 measured terrain or risk height. The location marker uses the same projection as
 the coastline. Geometry is cached at four frames per second to limit Pi CPU use.
+
+The map is now confined to UK view 3. Other UK views use the centre for the
+highest-colour weather bulletin with its issued time, local flood details, and a
+featured NCSC/BBC publication with date and source. Validity is checked at the
+original weather source rather than inferred from the publication timestamp.
+Each card opens its source when clicked. Fixed readouts and the four-second
+right-hand briefing remain visible.

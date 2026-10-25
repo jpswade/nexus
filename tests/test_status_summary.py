@@ -14,12 +14,16 @@ class StatusSummaryTests(unittest.TestCase):
 
     def test_every_uk_workspace_keeps_all_statuses(self):
         calls = []
+        panels = []
         ui = SimpleNamespace(text=lambda *args: calls.append(args[0]), line=lambda *args: None,
-                             panel=lambda *args: None, TEXT='green', DIM='grey',
+                             panel=lambda *args: panels.append(args[4]), TEXT='green', DIM='grey',
                              TEAL='green', AMBER='orange', RED='red')
         view = PreparednessDesktop(ui, SimpleNamespace())
         for index in range(4):
             calls.clear()
+            panels.clear()
             view.draw(index, 0, {}, {}, 100)
+            self.assertEqual('UK / SITUATION MAP' in panels, index == 2)
+            self.assertEqual('WEATHER WARNING / MET OFFICE' in panels, index != 2)
             for prefix in ('UK THREAT / ', 'WEATHER / ', 'FLOODS / ', 'DOOMSDAY / '):
                 self.assertTrue(any(value.startswith(prefix) for value in calls), (index, prefix))
