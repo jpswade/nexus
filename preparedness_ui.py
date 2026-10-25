@@ -8,7 +8,7 @@ from cyber_graphics import draw_orb
 from status_summary import summary
 from preparedness import LINKS, MAX_AGES, LEVELS, source_status
 
-NAMES = ('Planetary observatory', 'Incident & cyber watch', 'UK situation map', 'Minutes to midnight')
+NAMES = ('UK situation console', 'Incident & cyber watch', 'Local readiness', 'Minutes to midnight')
 PREPARE_TIPS = (
     'Keep important contact numbers on paper and agree a household emergency plan.',
     'Check your smoke alarms monthly. Review the support needs of people you care for.',
@@ -92,7 +92,7 @@ class PreparednessDesktop:
     def stream(self, age, data, errors, now):
         """Replay source headlines; motion changes presentation, never source facts."""
         u = self.u
-        u.panel(324,565,928,91,'SOURCE BRIEFING / AUTO REPLAY','PGUP / PGDN / END')
+        u.panel(840,105,412,551,'PUBLIC SOURCE BRIEFING','')
         rows = []
         for name, label in [('weather', 'MET OFFICE'), ('floods', 'ENV. AGENCY'),
                             ('ncsc', 'NCSC / PUBLICATION'), ('news', 'BBC / MEDIA REPORT')]:
@@ -109,17 +109,17 @@ class PreparednessDesktop:
                 if published:
                     stamp = dt.datetime.fromtimestamp(published, dt.timezone.utc).strftime('%d %b %H:%M UTC')
                     rows.append((stamp, u.DIM, None))
-                for row in textwrap.wrap(label+' / '+item['title'], 95):
+                for row in textwrap.wrap(item['title'], 38):
                     rows.append((row, u.TEXT, item.get('url')))
                 rows.append(('', u.DIM, None))
         rows.append(('PREPARE / HOUSEHOLD GUIDANCE', u.TEAL, LINKS['prepare']))
         for tip in PREPARE_TIPS:
-            rows.extend((row, u.TEXT, LINKS['prepare']) for row in textwrap.wrap(tip, 95))
+            rows.extend((row, u.TEXT, LINKS['prepare']) for row in textwrap.wrap(tip, 38))
             rows.append(('', u.DIM, None))
         rows = [row for row in rows if row[0]]
         self.stream_length = len(rows)
-        # Begin with a populated transcript, then reveal a line every 0.8 s.
-        progress = max(0., age)*1.25
+        # Show complete lines; each remains visible for roughly a minute.
+        progress = max(0., age)/4.0
         cursor = min(len(rows), 16+int(progress))
         if cursor == len(rows):
             cursor = 16+int(progress) % max(1, len(rows)-15)
@@ -128,15 +128,15 @@ class PreparednessDesktop:
             cursor = min(len(rows), getattr(self, 'history_cursor', cursor))
         offset = min(getattr(self, 'scroll_offset', 0), max(0, cursor-1))
         end = cursor-offset
-        start = max(0, end-2)
+        start = max(0, end-18)
         for n, (value, colour, url) in enumerate(rows[start:end]):
-            if n == end-start-1 and not offset:
-                value = value[:int((progress % 1)*max(1, len(value)))]+('_' if int(age*2)%2 else '')
-            y = 609+n*23
-            u.text(value, 340, y, 17, colour)
+            y = 154+n*25
+            u.text(value,854,y,18,colour)
             if url:
-                self.links.append(((336, y, 900, 22), url))
-        if offset:u.text('HISTORY',1125,581,14,u.AMBER)
+                self.links.append(((850, y, 396, 24), url))
+        u.line((854,613),(1238,613),u.DIM)
+        u.text('HISTORY' if offset else 'AUTO REPLAY / 4 SECONDS PER LINE',854,624,15,u.TEAL)
+        u.text('SPACE PAUSE / PGUP / PGDN / END',854,645,12,u.DIM)
 
     def draw(self, index, age, data, errors, now, stream_age=None):
         u = self.u
@@ -167,34 +167,27 @@ class PreparednessDesktop:
         self.paragraphs(source_status('threat',data,errors,now),44,509,30,14,2,u.DIM)
         self.links.append(((28,286,280,266),LINKS['threat']))
         self.active_url=LINKS['threat']
-        u.panel(324,105,600,447,'UK / SITUATION MAP' if index==2 else 'EARTH / GEOGRAPHIC OBSERVATORY','')
-        if self.globe and index!=2:
-            u.blit(self.globe.draw(age if stream_age is None else stream_age),340,151)
-        elif self.map:
-            # The same map, scaled to fit the central instrument bay.
+        u.panel(324,105,500,447,'UK / SITUATION MAP','')
+        if self.map:
             import pygame
-            u.blit(pygame.transform.smoothscale(self.map.draw(age),(390,390)),429,150)
-        if index!=2:
-            u.text('ROTATING VIEW / CONFIGURED AREA MARKER',342,529,15,u.DIM)
-        u.panel(940,105,312,270,'LOCAL WEATHER / MET OFFICE','')
-        weather=self.local_weather
-        if weather:
-            stale=self.weather_failed or now-weather['fetched']>1800
-            u.text(f"{weather['temp']:.0f} C",956,153,46,u.TEXT)
-            u.text('OPEN-METEO / '+('STALE' if stale else 'LATEST'),1076,177,13,u.DIM)
-        else:u.text('TEMPERATURE UNAVAILABLE',956,163,18,u.DIM)
-        u.text(summary('weather',data,now,errors),956,213,20,u.AMBER)
+            u.blit(pygame.transform.smoothscale(self.map.draw(age),(350,350)),399,150)
         rows=data.get('weather',{}).get('items',[])
         rank={'red':3,'amber':2,'yellow':1}
         item=max(rows,key=lambda item:rank.get(item.get('colour'),0),default=None)
-        self.paragraphs(item['title'] if item else ('No bulletins returned' if 'weather' in data else 'Weather source unavailable'),956,246,28,18,4)
-        self.paragraphs(source_status('weather',data,errors,now),956,344,34,12,2,u.DIM)
-        self.links.append(((940,105,312,270),item['url'] if item else LINKS['weather']))
-        u.panel(940,389,312,163,'LOCAL / FLOOD WATCH','')
-        u.text(summary('floods',data,now,errors),956,439,23,u.AMBER)
-        self.paragraphs(getattr(self.feeds,'flood_scope','ENGLAND'),956,474,33,15,2,u.DIM)
-        u.text('EA / ENGLAND / CHECK AREA',956,522,14,u.DIM)
-        self.links.append(((940,389,312,163),LINKS['floods']))
+        self.paragraphs(item['title'] if item else ('No weather bulletins returned' if 'weather' in data else 'Weather source unavailable'),340,501,47,17,2,u.AMBER)
+        self.links.append(((324,495,500,57),item['url'] if item else LINKS['weather']))
+        u.panel(324,565,244,91,'WEATHER / MET OFFICE','')
+        weather=self.local_weather
+        stale=weather and (self.weather_failed or now-weather['fetched']>1800)
+        temp=f"{weather['temp']:.0f} C" if weather else '-- C'
+        u.text(temp,340,605,28,u.TEXT)
+        self.paragraphs(summary('weather',data,now,errors),417,607,19,14,2,u.AMBER)
+        u.text('OPEN-METEO'+(' / STALE' if stale else ''),340,639,10,u.DIM)
+        self.links.append(((324,565,244,91),LINKS['weather']))
+        u.panel(580,565,244,91,'LOCAL FLOODS / EA','')
+        u.text(summary('floods',data,now,errors),596,606,20,u.AMBER)
+        self.paragraphs(getattr(self.feeds,'flood_scope','ENGLAND'),596,634,33,11,1,u.DIM)
+        self.links.append(((580,565,244,91),LINKS['floods']))
         u.panel(28,565,280,91,'DOOMSDAY / BULLETIN','')
         u.text(str(setting['seconds_to_midnight']) if setting else '--',44,601,36,u.AMBER)
         u.text('SECONDS TO MIDNIGHT',112,607,16,u.TEXT)

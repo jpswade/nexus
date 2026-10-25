@@ -149,6 +149,21 @@ class PreparednessTests(unittest.TestCase):
         view.stream(12, {}, {}, 0)
         self.assertEqual(calls, paused)
 
+    def test_briefing_holds_complete_lines_for_four_seconds(self):
+        calls = []
+        ui = SimpleNamespace(text=lambda *args: calls.append(args), line=lambda *args: None,
+                             panel=lambda *args: None, TEXT='green', DIM='grey',
+                             TEAL='green', AMBER='orange', RED='red')
+        view = PreparednessDesktop(ui, SimpleNamespace())
+        view.stream(0, {}, {}, 0)
+        first = calls[:]
+        calls.clear()
+        view.stream(3.99, {}, {}, 0)
+        self.assertEqual(calls, first)
+        calls.clear()
+        view.stream(4, {}, {}, 0)
+        self.assertNotEqual(calls, first)
+
     def test_all_uk_screens_render_without_network(self):
         with tempfile.TemporaryDirectory() as directory:
             env = {**os.environ, 'NEXUS_CONFIG': str(ROOT/'config.example.json'), 'NEXUS_CACHE': directory}

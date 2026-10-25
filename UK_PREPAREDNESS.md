@@ -141,3 +141,13 @@ Workspace 3 shows the UK map in the central instrument area. The globe uses the
 existing Natural Earth coastline data and marks only the configured location,
 not inferred incidents. Motion remains paused with Space; transcript history
 controls are unchanged. Local temperature refresh now also runs in the UK profile.
+
+### UK-focused hybrid layout
+
+The UK map is now the primary visual on every UK workspace. The original large
+clock and threat panel remain on the left; weather, flooding and the published
+Doomsday setting stay fixed below. The briefing transcript occupies the full-height
+right column again. It advances one complete line every four seconds, without
+typewriter truncation; up to 18 lines remain visible. Space pauses, Page Up/Down
+browse history, and End returns to automatic replay. The globe remains available
+in the technical observatory (F6).
