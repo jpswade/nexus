@@ -2,10 +2,12 @@ import os
 import argparse
 
 arguments = argparse.ArgumentParser(description="Nexus desktop dashboard")
+arguments.add_argument('--profile', choices=('uk', 'technical'), default=os.environ.get('NEXUS_PROFILE', 'uk'))
 arguments.add_argument('--snapshot', help='Render one cached-data frame to a PNG without opening the monitor')
 arguments.add_argument('--workspace', type=int, choices=range(1,5), default=1)
 arguments.add_argument('--age', type=float, default=0, help='Workspace animation age for snapshots')
 ARGS = arguments.parse_args()
+os.environ['NEXUS_PROFILE'] = ARGS.profile
 if ARGS.snapshot:
     os.environ['SDL_VIDEODRIVER'] = 'dummy'
     os.environ['SDL_RENDER_DRIVER'] = 'software'
@@ -88,7 +90,7 @@ def fetch_weather():
             print(f"Weather update failed: {error}", flush=True)
         time.sleep(600 if not weather_failed else 60)
 
-if not ARGS.snapshot:
+if not ARGS.snapshot and ARGS.profile == "technical":
     threading.Thread(target=fetch_weather, daemon=True).start()
 
 import collections
@@ -99,13 +101,20 @@ from security_ui import SecurityDesktop
 from workspaces import WorkspaceCycle, NAMES
 from terminal_theme import PALETTE, font as terminal_font, switch_view
 from types import SimpleNamespace
+from preparedness import PreparednessFeeds
+from preparedness_ui import PreparednessDesktop, NAMES as UK_NAMES
+if ARGS.profile == "uk":
+    NAMES = UK_NAMES
 
 planet = PlanetFeeds(CACHE_DIR)
-if not ARGS.snapshot:
+if not ARGS.snapshot and ARGS.profile == "technical":
     planet.start()
 security = SecurityFeeds(CACHE_DIR / "security")
-if not ARGS.snapshot:
+if not ARGS.snapshot and ARGS.profile == "technical":
     security.start()
+preparedness = PreparednessFeeds(CACHE_DIR / "preparedness", LOCATION)
+if not ARGS.snapshot and ARGS.profile == "uk":
+    preparedness.start()
 
 os.environ.setdefault("SDL_RENDER_DRIVER", "opengles2")
 pygame.display.init()
@@ -120,7 +129,7 @@ else:
     except pygame.error:
         screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption('NEXUS / TERMINAL')
-pygame.mouse.set_visible(False)
+pygame.mouse.set_visible(ARGS.profile == "uk")
 W, H = screen.get_size()
 S = min(W/1280, H/720)
 OX, OY = (W-1280*S)/2, (H-720*S)/2
@@ -172,6 +181,13 @@ def bar(x,y,w,value,color):
 
 desktop = SecurityDesktop(SimpleNamespace(text=text, mono=mono, panel=panel, bevel=bevel,
                                          line=line, TEXT=TEXT, DIM=DIM, TEAL=TEAL, AMBER=AMBER, LIME=LIME))
+prepared_ui = PreparednessDesktop(SimpleNamespace(text=text, panel=panel, line=line,
+    TEXT=TEXT, DIM=DIM, TEAL=TEAL, AMBER=AMBER, RED=(255,100,100)), preparedness)
+
+def open_source(url):
+    import webbrowser
+    threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
+
 cycle=WorkspaceCycle(duration=32,initial=ARGS.workspace-1)
 if ARGS.snapshot:cycle.automatic=False
 manual_terminal=False
@@ -289,6 +305,9 @@ while running:
     if ARGS.snapshot:input_time=ARGS.age
     for event in pygame.event.get():
         if event.type==pygame.QUIT or (event.type==pygame.KEYDOWN and event.key==pygame.K_ESCAPE):running=False
+        elif event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and ARGS.profile=='uk':
+            url=prepared_ui.clicked_url(((event.pos[0]-OX)/S,(event.pos[1]-OY)/S))
+            if url:open_source(url)
         elif event.type==pygame.KEYDOWN:
             if event.key==pygame.K_SPACE:
                 paused=not paused
@@ -303,10 +322,16 @@ while running:
             elif event.key==pygame.K_F5:
                 pygame.quit()
                 switch_view('home')
+            elif event.key==pygame.K_F6:
+                os.environ['NEXUS_PROFILE']='technical' if ARGS.profile=='uk' else 'uk'
+                pygame.quit()
+                switch_view('nexus')
+            elif event.key==pygame.K_o and ARGS.profile=='uk':
+                open_source(prepared_ui.active_url)
             elif event.key==pygame.K_a:
                 cycle.automatic=not cycle.automatic
                 cycle.since=input_time
-            elif event.key==pygame.K_t:
+            elif event.key==pygame.K_t and ARGS.profile=='technical':
                 currently_visible=manual_terminal
                 manual_terminal=not currently_visible
                 terminal_hidden=currently_visible
@@ -322,6 +347,7 @@ while running:
     epoch=time.time()
     feeds, errors=planet.snapshot()
     security_data,security_errors=security.snapshot()
+    uk_data,uk_errors=preparedness.snapshot()
     iss=feeds.get('iss')
     quakes=feeds.get('quakes')
     kp=feeds.get('kp')
@@ -343,20 +369,25 @@ while running:
     text(' '.join(f'[{i+1}]' if i==workspace else f' {i+1} ' for i in range(4)),28,64,20,TEXT)
     mode=f'AUTO / {max(0,int(cycle.duration-age))}s' if cycle.automatic else 'MANUAL'
     text(mode,420,64,20,DIM)
-    count=len(feeds)+len(security_data)
-    text(f'{count}/7 SOURCES' + (' / RETRYING' if errors or security_errors else ''),1252,64,20,
-         AMBER if errors or security_errors else DIM,True)
+    count=len(uk_data) if ARGS.profile=='uk' else len(feeds)+len(security_data)
+    total=len(preparedness.urls) if ARGS.profile=='uk' else 7
+    failed=uk_errors if ARGS.profile=='uk' else errors|security_errors
+    text(f'{count}/{total} SOURCES' + (' / RETRYING' if failed else ''),1252,64,20,
+         AMBER if failed else DIM,True)
     briefing_age=7.65+(t-terminal_since) if manual_terminal else age
     # Briefings replace the main view instead of covering it with a popup.
     show_brief=manual_terminal and not terminal_hidden
-    if show_brief:
+    if ARGS.profile=='uk':
+        prepared_ui.draw(workspace,age,uk_data,uk_errors,epoch)
+    elif show_brief:
         desktop.terminal(workspace,briefing_age,security_data,security_errors,epoch,
                          (workspace,cycle.since,manual_terminal),forced=True)
     elif workspace==3:
         draw_observatory(age)
     else:
         desktop.draw(workspace,age,security_data,security_errors,epoch)
-    text('1-4 VIEWS   ARROWS SWITCH   A AUTO   T BRIEF   F5 HOME',44,679,18,DIM)
+    controls='1-4 VIEWS / A AUTO / O SOURCE / F5 HOME / F6 TECH' if ARGS.profile=='uk' else '1-4 VIEWS / A AUTO / T BRIEF / F5 HOME / F6 UK'
+    text(controls,44,679,18,DIM)
     text('SPACE PAUSE / ESC EXIT',1236,679,18,DIM,True)
     if ARGS.snapshot:
         pygame.image.save(screen,ARGS.snapshot)

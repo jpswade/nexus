@@ -43,7 +43,7 @@ class IntegrationTests(unittest.TestCase):
             env = {**os.environ, 'NEXUS_CONFIG': str(ROOT/'config.example.json'),
                    'NEXUS_CACHE': directory}
             for workspace in range(1, 5):
-                result = subprocess.run([sys.executable, 'launch.py', 'nexus', '--snapshot',
+                result = subprocess.run([sys.executable, 'launch.py', 'nexus', '--profile', 'technical', '--snapshot',
                                          str(Path(directory)/f'{workspace}.png'),
                                          '--workspace', str(workspace), '--age', '3'],
                                         cwd=ROOT, env=env, capture_output=True, timeout=15)
@@ -55,7 +55,7 @@ class IntegrationTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr.decode())
             sample_cache(directory)
             for workspace, age in [(1, 3), (2, 3), (2, 15), (3, 3), (4, 3)]:
-                result = subprocess.run([sys.executable, 'launch.py', 'nexus', '--snapshot',
+                result = subprocess.run([sys.executable, 'launch.py', 'nexus', '--profile', 'technical', '--snapshot',
                                          str(Path(directory)/'populated.png'), '--workspace',
                                          str(workspace), '--age', str(age)], cwd=ROOT, env=env,
                                         capture_output=True, timeout=15)

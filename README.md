@@ -5,7 +5,8 @@ A Pygame terminal for Raspberry Pi and HDMI monitors. One repository contains bo
 ## Two views, one launcher
 
 ```sh
-python3 launch.py nexus   # Security briefings and observatory
+python3 launch.py nexus   # UK preparedness (default)
+python3 launch.py nexus --profile technical  # Cyber and observatory
 python3 launch.py home    # Configurable clock, weather, agenda and plugins
 ```
 
@@ -13,7 +14,13 @@ python3 launch.py home    # Configurable clock, weather, agenda and plugins
 
 Nexus uses `config.json` for location. Home uses `home.json` for layout and widgets; the launcher creates it from `home.example.json` on first use. Its weather widget shares the Nexus location unless explicitly overridden. `NEXUS_CONFIG` and `NEXUS_HOME_CONFIG` select alternate config paths (use absolute paths for switching). [Home dashboard setup and plugin API](HOME_DASHBOARD.md).
 
-## Nexus workspaces
+## UK-first preparedness
+
+The default profile rotates through UK status, incident/cyber reporting, local readiness, and a London-time midnight clock. **F6** switches to the technical profile; **F5** switches to the configurable home dashboard. In the UK profile, **O** opens the selected source in your installed browser; source rows are also clickable.
+
+Official terrorism assessments, weather bulletins, flood warnings, and news reports remain distinct. No combined threat score is calculated. The midnight counter is a local clock, not the Bulletin of the Atomic Scientists’ Doomsday Clock. [Sources, local setup and data limitations](UK_PREPAREDNESS.md).
+
+## Technical profile workspaces
 
 The display rotates every 32 seconds through four workspaces:
 
@@ -54,7 +61,7 @@ The globe's camera moves for presentation; markers use the source coordinates. P
 
 Feeds are fetched in background threads and cached locally. Each panel shows the observation age. Failed updates or old observations are marked stale; cached data is not presented as current. NOAA source observations can lag, even when requests succeed. Kp measures geomagnetic activity, not your local chance of seeing an aurora. The USGS feed is a reported-event catalogue, not a complete count of every earthquake worldwide.
 
-No API keys are required. Public feeds do not receive your location; only the local weather request sends the coordinates configured in `config.json` to Open-Meteo.
+No API keys are required. Weather requests send configured coordinates to Open-Meteo. When local flood alerts are enabled, the Environment Agency receives the configured coordinates and search radius. Met Office requests include the selected region. Config files and caches are excluded from Git.
 
 ## Hardware and software
 
@@ -137,7 +144,7 @@ For a complete rollback, check out the desired Git commit and rerun the installe
 ## Development checks
 
 ```bash
-python3 -m compileall -q dashboard.py feeds.py security.py security_ui.py workspaces.py launch.py terminal_theme.py pi_dashboard plugins
+python3 -m compileall -q dashboard.py feeds.py security.py security_ui.py workspaces.py preparedness.py preparedness_ui.py launch.py terminal_theme.py pi_dashboard plugins
 python3 -m unittest discover -s tests -v
 sh -n scripts/install.sh
 ```
@@ -151,8 +158,8 @@ Weather conditions use the WMO codes supplied by Open-Meteo. Data attribution is
 For visual QA on the Pi, render a workspace without changing the monitor or making network requests:
 
 ```bash
-python3 ~/dashboard/dashboard.py --snapshot /tmp/php-watch.png --workspace 2 --age 3
-python3 ~/dashboard/dashboard.py --snapshot /tmp/observatory.png --workspace 4 --age 3
+python3 ~/dashboard/dashboard.py --profile technical --snapshot /tmp/php-watch.png --workspace 2 --age 3
+python3 ~/dashboard/dashboard.py --profile technical --snapshot /tmp/observatory.png --workspace 4 --age 3
 ```
 
 `--workspace` is 1–4. `--age` selects the point in the workspace rotation. Previews use the installed config and local caches; empty feeds show a connecting state.
