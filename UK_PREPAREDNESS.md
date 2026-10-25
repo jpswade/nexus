@@ -114,3 +114,18 @@ share the same status strip. Weather colour is the highest colour returned by th
 feed, not an inference that every warning applies at the current instant. Original
 source area and validity checks still apply. The LCD keeps weather details fixed
 and rotates only its secondary news line.
+
+### Map-led console
+
+The UK workspaces use a map-led composition inspired by the user's selected
+Fireart dashboard reference. A cached Natural Earth 1:50m basemap shows the UK
+and Ireland with separate country fills. The only pulsing marker is the configured
+location; it is not an incident. The moving scan is decorative. The current feeds
+do not provide usable incident coordinates, so no attack or warning-area pins
+are fabricated. Threat assessment and source stream remain visible while the
+secondary card rotates through weather, publications, flooding and Doomsday.
+
+Map data: Natural Earth, public domain,
+https://www.naturalearthdata.com/about/terms-of-use/
+Source: https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_50m_admin_0_countries.geojson
+Only UK and Ireland geometries are bundled in `data/uk-map.geojson`.

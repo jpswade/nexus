@@ -35,7 +35,7 @@ class PreparednessTests(unittest.TestCase):
             for age in (0, .5, 1.2, 4, 12):
                 calls.clear()
                 view.draw(0, age, data, set(), 101)
-                hero = [call[0] for call in calls if len(call)>3 and call[3]==112]
+                hero = [call[0] for call in calls if len(call)>3 and call[3]==44]
                 self.assertEqual(hero, [level or 'UNAVAILABLE'])
                 selected = [call[0] for call in calls if str(call[0]).startswith('>> ')]
                 self.assertEqual(selected, ['>> '+level] if level else [])
@@ -119,7 +119,7 @@ class PreparednessTests(unittest.TestCase):
         for age, now in [(0, 0), (30, 3600), (60, 86400)]:
             calls.clear()
             view.draw(3, age, {}, set(), now)
-            self.assertEqual([c[0] for c in calls if len(c)>3 and c[3]==148], ['85'])
+            self.assertEqual([c[0] for c in calls if len(c)>3 and c[3]==72], ['85'])
             self.assertEqual(view.active_url, record['url'])
         with tempfile.TemporaryDirectory() as directory:
             invalid = Path(directory)/'setting.json'

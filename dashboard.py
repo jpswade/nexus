@@ -183,8 +183,11 @@ def bar(x,y,w,value,color):
 
 desktop = SecurityDesktop(SimpleNamespace(text=text, mono=mono, panel=panel, bevel=bevel,
                                          line=line, TEXT=TEXT, DIM=DIM, TEAL=TEAL, AMBER=AMBER, LIME=LIME))
-prepared_ui = PreparednessDesktop(SimpleNamespace(text=text, panel=panel, line=line,
-    TEXT=TEXT, DIM=DIM, TEAL=TEAL, AMBER=AMBER, RED=(255,100,100)), preparedness)
+def map_blit(surface,x,y):
+    screen.blit(pygame.transform.scale(surface,(round(surface.get_width()*S),round(surface.get_height()*S))),pos(x,y))
+
+prepared_ui = PreparednessDesktop(SimpleNamespace(text=text, panel=panel, line=line, blit=map_blit,
+    TEXT=TEXT, DIM=DIM, TEAL=TEAL, AMBER=AMBER, RED=(255,100,100)), preparedness, LOCATION)
 
 def open_source(url):
     import webbrowser
