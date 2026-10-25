@@ -7,7 +7,7 @@
 1. **UK status brief:** the UK-wide terrorism assessment from GOV.UK, separately displayed regional Met Office warning bulletins, and last successful check timestamps.
 2. **Incident & cyber watch:** alternates NCSC official publications and BBC UK media reports. BBC headlines are selected by explicit topic keywords such as cyber, flood, storm, outage and attack. This selection is not incident verification or risk scoring; political statements and historical reports can appear if their headlines match. Source publication dates remain visible where supplied.
 3. **Local readiness:** Environment Agency flood alerts/warnings, geographic scope, update time, and rotating household reminders based on the government Prepare campaign.
-4. **Minutes to midnight:** real elapsed time to the next midnight in Europe/London, including daylight-saving transitions. This is neither the symbolic Doomsday Clock nor a forecast of an emergency.
+4. **Minutes to midnight:** the Bulletin of the Atomic Scientists’ published Doomsday Clock setting: 85 seconds, announced 27 January 2026 and verified against its original statement on 25 October 2026. The setting remains fixed while decorative graphics animate.
 
 Green is routine information, amber draws attention, and red is used for Met Office red warning bulletins or official severe flood warnings. Colours are not combined into an overall threat level. The app labels itself as an independent public-source display, not a government service.
 
@@ -55,4 +55,10 @@ python3 dashboard.py --snapshot /tmp/readiness.png --workspace 3
 python3 dashboard.py --snapshot /tmp/midnight.png --workspace 4
 ```
 
-Snapshots perform no network access; they use cache files and show a connecting state if none exists. `NEXUS_CACHE` can redirect caches for isolated tests. Tests cover source parsing, missing data, local scope, cache separation, stale data after failures, daylight-saving countdowns, and empty/populated screen rendering. Hardware startup, browser handoff and Pi performance still need an on-device check.
+Snapshots perform no network access; they use cache files and show a connecting state if none exists. `NEXUS_CACHE` can redirect caches for isolated tests. Tests cover source parsing, missing data, local scope, cache separation, stale data after failures, published-setting invariance, and empty/populated screen rendering. Hardware startup, browser handoff and Pi performance still need an on-device check.
+
+## Doomsday Clock source record
+
+The published setting lives in `data/doomsday-clock.json`, with announcement date, verification date, publisher and original statement URL. It is editorially maintained, not automatically scraped. On a new Bulletin announcement, verify the original source and update that record; the installer deploys it with the app. The display shows the verification date rather than implying live monitoring. A malformed or missing record shows unavailable instead of a fabricated number.
+
+Source: [2026 Doomsday Clock statement](https://thebulletin.org/doomsday-clock/2026-statement/). The clock is a symbolic assessment of global risks, separate from the UK national terrorism assessment.

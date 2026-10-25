@@ -1,7 +1,8 @@
 """UK-first, source-labelled civil preparedness screens."""
 import datetime as dt
 import textwrap
-from zoneinfo import ZoneInfo
+import json
+from pathlib import Path
 import math
 from cyber_graphics import draw_orb
 from preparedness import LINKS, MAX_AGES, LEVELS, source_status
@@ -15,11 +16,20 @@ PREPARE_TIPS = (
 )
 
 
-def midnight_remaining(now):
-    tomorrow = now.date()+dt.timedelta(days=1)
-    midnight = dt.datetime.combine(tomorrow, dt.time(), tzinfo=now.tzinfo)
-    seconds = max(0, int(midnight.timestamp()-now.timestamp()))
-    return f'{seconds//3600:02}:{seconds//60%60:02}:{seconds%60:02}'
+def load_doomsday_setting(path=None):
+    """Load an explicitly dated, source-verified editorial record, not a timer."""
+    try:
+        record = json.loads((Path(path) if path else Path(__file__).parent/'data/doomsday-clock.json').read_text())
+        seconds = record['seconds_to_midnight']
+        if isinstance(seconds, bool) or not isinstance(seconds, int) or not 0 <= seconds <= 3600:
+            raise ValueError('Invalid setting')
+        for key in ('announced', 'verified'):
+            dt.date.fromisoformat(record[key])
+        if not record['url'].startswith('https://thebulletin.org/doomsday-clock/'):
+            raise ValueError('Expected original publisher')
+        return record
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
 
 
 class PreparednessDesktop:
@@ -28,6 +38,7 @@ class PreparednessDesktop:
         self.feeds = feeds
         self.links = []
         self.active_url = LINKS['prepare']
+        self.doomsday = load_doomsday_setting()
 
     def wrap(self, value, y, size=26, width=82, lines=3, color=None):
         rows = textwrap.wrap(str(value), width)
@@ -155,13 +166,16 @@ class PreparednessDesktop:
             else:
                 u.text('USE YOUR NATIONAL FLOOD WARNING SERVICE', 48, 624, 18, u.AMBER)
         else:
-            local = dt.datetime.fromtimestamp(now, ZoneInfo('Europe/London'))
-            u.text('TIME UNTIL LOCAL MIDNIGHT', 48, 162, 24, u.DIM)
-            u.text(midnight_remaining(local), 48, 206, 132, u.TEXT)
+            setting = self.doomsday
+            u.text('DOOMSDAY CLOCK / PUBLISHED SETTING', 48, 162, 24, u.DIM)
+            u.text(str(setting['seconds_to_midnight']) if setting else '--', 48, 198, 148, u.AMBER)
+            u.text('SECONDS TO MIDNIGHT', 48, 355, 36, u.TEXT)
             draw_orb(u, 1070, 283, 100, age)
             u.text('VISUAL FX', 1020, 437, 16, u.DIM)
-            u.text('EUROPE/LONDON / '+local.strftime('%A %d %B %Y').upper(), 48, 365, 24, u.DIM)
-            u.text('A CLOCK. NOT A THREAT SCORE OR A DISASTER FORECAST.', 48, 421, 23, u.AMBER)
-            self.wrap('Be informed. Make a household plan. Keep useful supplies accessible. Follow official advice for your area.', 480, size=24, width=88, lines=2)
-            self.source('PREPARE / UK GOVERNMENT CAMPAIGN', LINKS['prepare'])
-            u.text('INDEPENDENT DISPLAY / NOT A GOVERNMENT EMERGENCY ALERT SERVICE', 48, 624, 18, u.DIM)
+            if setting:
+                announced = dt.date.fromisoformat(setting['announced']).strftime('%d %B %Y').upper()
+                u.text('ANNOUNCED '+announced, 48, 412, 23, u.DIM)
+            u.text('SYMBOLIC GLOBAL RISK ASSESSMENT', 48, 460, 24, u.TEXT)
+            self.wrap('Set by the Bulletin of the Atomic Scientists. The published value stays fixed until the Bulletin changes it.', 501, size=22, width=90, lines=2)
+            self.source('BULLETIN OF THE ATOMIC SCIENTISTS', setting['url'] if setting else 'https://thebulletin.org/doomsday-clock/')
+            u.text('SOURCE VERIFIED '+setting['verified']+' / EDITORIALLY MAINTAINED' if setting else 'SETTING UNAVAILABLE / CHECK ORIGINAL SOURCE', 48, 624, 18, u.DIM)

@@ -27,6 +27,7 @@ cp "$SOURCE/launch.py" "$SOURCE/terminal_theme.py" "$SOURCE/bitmap_font.py" "$SO
 cp -R "$SOURCE/pi_dashboard" "$SOURCE/plugins" "$SOURCE/assets" "$DEST/"
 mkdir -p "$DEST/data"
 cp "$SOURCE/data/land.json" "$DEST/data/land.json"
+cp "$SOURCE/data/doomsday-clock.json" "$DEST/data/doomsday-clock.json"
 for name in agenda.json agenda.example.json metric.json; do
     if [ ! -f "$DEST/data/$name" ]; then
         cp "$SOURCE/data/$name" "$DEST/data/$name"

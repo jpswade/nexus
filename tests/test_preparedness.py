@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 from preparedness import PreparednessFeeds, build_sources, parse_feed, source_status
-from preparedness_ui import midnight_remaining, PreparednessDesktop
+from preparedness_ui import load_doomsday_setting, PreparednessDesktop
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -107,11 +107,24 @@ class PreparednessTests(unittest.TestCase):
             self.assertTrue(source_status('threat', data, errors, time.time()).startswith('STALE'))
             self.assertEqual(source_status('news', {}, {'news'}, time.time()), 'UNAVAILABLE')
 
-    def test_midnight_uses_real_elapsed_time_across_dst(self):
-        tz = ZoneInfo('Europe/London')
-        self.assertEqual(midnight_remaining(dt.datetime(2026, 10, 25, 0, 0, tzinfo=tz)), '25:00:00')
-        self.assertEqual(midnight_remaining(dt.datetime(2026, 3, 29, 0, 0, tzinfo=tz)), '23:00:00')
-        self.assertEqual(midnight_remaining(dt.datetime(2026, 10, 26, 23, 59, 30, tzinfo=tz)), '00:00:30')
+    def test_doomsday_setting_is_published_value_not_elapsed_time(self):
+        record = load_doomsday_setting()
+        self.assertEqual(record['seconds_to_midnight'], 85)
+        self.assertEqual(record['announced'], '2026-01-27')
+        calls = []
+        ui = SimpleNamespace(text=lambda *args: calls.append(args), line=lambda *args: None,
+                             panel=lambda *args: None, TEXT='green', DIM='grey',
+                             TEAL='green', AMBER='orange', RED='red')
+        view = PreparednessDesktop(ui, SimpleNamespace())
+        for age, now in [(0, 0), (30, 3600), (60, 86400)]:
+            calls.clear()
+            view.draw(3, age, {}, set(), now)
+            self.assertEqual([c[0] for c in calls if len(c)>3 and c[3]==148], ['85'])
+            self.assertEqual(view.active_url, record['url'])
+        with tempfile.TemporaryDirectory() as directory:
+            invalid = Path(directory)/'setting.json'
+            invalid.write_text('{}')
+            self.assertIsNone(load_doomsday_setting(invalid))
 
     def test_all_uk_screens_render_without_network(self):
         with tempfile.TemporaryDirectory() as directory:

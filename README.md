@@ -16,9 +16,9 @@ Nexus uses `config.json` for location. Home uses `home.json` for layout and widg
 
 ## UK-first preparedness
 
-The default profile rotates through UK status, incident/cyber reporting, local readiness, and a London-time midnight clock. **F6** switches to the technical profile; **F5** switches to the configurable home dashboard. In the UK profile, **O** opens the selected source in your installed browser; source rows are also clickable.
+The default profile rotates through UK status, incident/cyber reporting, local readiness, and the published Doomsday Clock. **F6** switches to the technical profile; **F5** switches to the configurable home dashboard. In the UK profile, **O** opens the selected source in your installed browser; source rows are also clickable.
 
-Official terrorism assessments, weather bulletins, flood warnings, and news reports remain distinct. No combined threat score is calculated. The midnight counter is a local clock, not the Bulletin of the Atomic Scientists’ Doomsday Clock. [Sources, local setup and data limitations](UK_PREPAREDNESS.md).
+Official terrorism assessments, weather bulletins, flood warnings, and news reports remain distinct. No combined threat score is calculated. The Doomsday Clock shows the Bulletin of the Atomic Scientists’ published symbolic setting, with its announcement and verification dates. [Sources, local setup and data limitations](UK_PREPAREDNESS.md).
 
 ## Technical profile workspaces
 
