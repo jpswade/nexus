@@ -21,6 +21,9 @@ if [ -f "$DEST/dashboard.py" ]; then
     cp "$DEST/dashboard.py" "$DEST/dashboard.backup-$(date +%Y%m%d-%H%M%S).py"
 fi
 cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
+cp "$SOURCE/feeds.py" "$DEST/feeds.py"
+mkdir -p "$DEST/data"
+cp "$SOURCE/data/land.json" "$DEST/data/land.json"
 cp "$SOURCE/config.json" "$DEST/config.json"
 chmod 600 "$DEST/config.json"
 mkdir -p "$DEST/.cache"

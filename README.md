@@ -1,19 +1,33 @@
 # NEXUS
 
-An animated dashboard for a Raspberry Pi 2 and an HDMI monitor. Built with Python and Pygame, with a dark terminal layout and a procedural neural field.
+An animated planetary observatory for a Raspberry Pi and an HDMI monitor. A rotating globe, orbital statistics and natural events, built with Python and Pygame.
 
 ## What it does
 
-- Clock, date and seconds indicator.
-- Animated nodes, orbiting sweeps and travelling pulses.
-- Live CPU, memory, temperature, uptime and free disk space.
-- CPU history and network traffic graphs, sampled every two seconds.
-- Local event stream and a scrolling information ticker.
-- Local weather, updated every ten minutes through Open-Meteo.
+- Local clock, date and weather.
+- A rotating globe with Natural Earth coastlines.
+- Modelled ISS coordinates, altitude and velocity, sampled every 20 seconds from Where the ISS at?.
+- Global M2.5+ earthquakes reported by USGS in the last 24 hours, plotted on the globe. Shows the strongest and most recent event.
+- NOAA planetary Kp index and solar-wind speed, with observation ages.
+- Estimated ISS orbit period, derived from its altitude using a circular-orbit approximation.
+- A scrolling ticker with facts from those feeds.
 
-The system readings are real. The neural field is a visual effect; it does not run an AI model. No calendar integration.
+**Space** pauses the animation. **Escape** closes the dashboard. Data feeds keep updating while the animation is paused. There is no calendar integration or local machine telemetry.
 
-**Space** pauses the animation. **Escape** closes the dashboard. Telemetry and weather keep updating while the animation is paused.
+The globe's camera moves for presentation; markers use the source coordinates. Pulsing earthquake rings are decorative and do not represent real-time seismic waves. ISS coordinates are modelled satellite positions, not a live camera or an overhead-pass prediction.
+
+## Public feeds
+
+| Feed | Refresh | Display |
+| --- | --- | --- |
+| [Where the ISS at?](https://wheretheiss.at/w/developer) | 20 seconds | Position, speed, altitude |
+| [USGS](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php) | 5 minutes | Reported M2.5+ events, rolling 24 hours |
+| [NOAA SWPC](https://services.swpc.noaa.gov/) | Kp: 10 minutes; wind: 5 minutes | Geomagnetic index and active solar-wind observations |
+| [Open-Meteo](https://open-meteo.com/en/docs) | 10 minutes | Weather for your configured coordinates |
+
+Feeds are fetched in background threads and cached locally. Each panel shows the observation age. Failed updates or old observations are marked stale; cached data is not presented as current. NOAA source observations can lag, even when requests succeed. Kp measures geomagnetic activity, not your local chance of seeing an aurora. The USGS feed is a reported-event catalogue, not a complete count of every earthquake worldwide.
+
+No API keys are required. Public feeds do not receive your location; only the local weather request sends the coordinates configured in `config.json` to Open-Meteo.
 
 ## Hardware and software
 
@@ -81,7 +95,7 @@ journalctl --user -u pi-dashboard -n 30 --no-pager
 
 Some Raspberry Pi OS installations do not retain a user journal. `systemctl --user status` still shows recent service output.
 
-Weather cache: `~/dashboard/.cache/weather.json`. Configuration: `~/dashboard/config.json`. To use another config path, set the `NEXUS_CONFIG` environment variable.
+Feed caches: `~/dashboard/.cache/*.json`. Configuration: `~/dashboard/config.json`. To use another config path, set the `NEXUS_CONFIG` environment variable.
 
 To disable autostart, remove `~/.config/autostart/pi-dashboard.desktop` and stop the service:
 
@@ -91,15 +105,16 @@ To disable autostart, remove `~/.config/autostart/pi-dashboard.desktop` and stop
 
 ## Roll back
 
-The installer keeps timestamped `dashboard.backup-*.py` files in `~/dashboard`. Copy the chosen backup over `~/dashboard/dashboard.py` and restart the service. Keep `config.json` in place for versions that use it.
+For a complete rollback, check out the desired Git commit and rerun the installer so the app, feed module and map assets stay together. The installer also keeps timestamped `dashboard.backup-*.py` files in `~/dashboard` for immediate recovery of the main script. Keep `config.json` in place.
 
 ## Development checks
 
 ```bash
-python3 -m py_compile dashboard.py
+python3 -m py_compile dashboard.py feeds.py
+python3 -m unittest discover -s tests -v
 sh -n scripts/install.sh
 ```
 
-For display changes, run on the Pi, check the layout on the monitor or with a Wayland screenshot, and inspect frame rate, CPU use and temperature. The app logs measured frame rate periodically. Keep network calls off the render loop and keep telemetry read-only.
+For display changes, run on the Pi, check the layout on the monitor or with a Wayland screenshot, and inspect frame rate, CPU use and temperature. The app logs measured frame rate periodically. Keep network calls off the render loop.
 
 Weather conditions use the WMO codes supplied by Open-Meteo. Data attribution is shown on the dashboard.
