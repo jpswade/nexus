@@ -31,7 +31,7 @@ No API keys are required. Public feeds do not receive your location; only the lo
 
 ## Hardware and software
 
-Initially deployed on a Raspberry Pi 2 Model B Rev 1.1, running 32-bit Raspbian 13 with a labwc Wayland desktop and a 1920×1080 HDMI monitor. Rendering targets 12 fps to suit the older hardware.
+Initially deployed on a Raspberry Pi 2 Model B Rev 1.1, running 32-bit Raspbian 13 with a labwc Wayland desktop and a 1920×1080 HDMI monitor. Rendering targets 12 fps using a 1280×720 canvas, GPU-scaled to the monitor. The original Pi 2 measured about 8 fps with the planetary view; native 1080p software rendering was about 4 fps. If SDL scaling is unavailable, the app falls back to native fullscreen rendering.
 
 Requires Python 3 and Pygame 2.6 or newer. On Raspberry Pi OS:
 

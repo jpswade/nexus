@@ -86,9 +86,15 @@ from feeds import PlanetFeeds, MAX_AGES, age_label
 planet = PlanetFeeds(pathlib.Path(__file__).parent / '.cache')
 planet.start()
 
+os.environ.setdefault("SDL_RENDER_DRIVER", "opengles2")
 pygame.display.init()
 pygame.font.init()
-screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+# Render a smaller canvas and let SDL scale it through the GPU when available.
+# The Pi 2 is limited by software drawing at native 1080p.
+try:
+    screen = pygame.display.set_mode((1280, 720), pygame.FULLSCREEN | pygame.SCALED, vsync=1)
+except pygame.error:
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.display.set_caption('NEXUS // Planetary observatory')
 pygame.mouse.set_visible(False)
 W, H = screen.get_size()
