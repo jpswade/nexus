@@ -163,3 +163,10 @@ featured NCSC/BBC publication with date and source. Validity is checked at the
 original weather source rather than inferred from the publication timestamp.
 Each card opens its source when clicked. Fixed readouts and the four-second
 right-hand briefing remain visible.
+
+Briefing cards include small decorative vector animations: travelling weather
+strokes, flowing water lines and a rotating wireframe orb. These are labelled
+VISUAL FX and do not encode warning intensity, river height or network activity.
+They use the paused animation clock and bounded caches at six frames per second.
+The clock's seconds sweep reflects actual time. Text continues to advance only
+once every four seconds, independently of these effects.

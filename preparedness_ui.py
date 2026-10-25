@@ -40,11 +40,14 @@ class PreparednessDesktop:
         self.links = []
         self.active_url = LINKS['prepare']
         self.doomsday = load_doomsday_setting()
+        self.visuals = None
         self.map = None
         self.globe = None
         self.local_weather = None
         self.weather_failed = False
         if hasattr(ui, 'blit'):
+            from animated_visuals import Visuals
+            self.visuals = Visuals()
             from uk_map import UKMap
             self.map = UKMap(location)
             from observatory_globe import ObservatoryGlobe
@@ -144,7 +147,10 @@ class PreparednessDesktop:
         rank={'red':3,'amber':2,'yellow':1}
         item=max(rows,key=lambda row:rank.get(row.get('colour'),0),default=None)
         u.panel(324,105,500,160,'WEATHER WARNING / MET OFFICE','')
-        self.paragraphs(item['title'] if item else ('No weather bulletins returned' if 'weather' in data else 'Weather source unavailable'),340,154,46,20,2,u.AMBER)
+        self.paragraphs(item['title'] if item else ('No weather bulletins returned' if 'weather' in data else 'Weather source unavailable'),340,154,33,19,3,u.AMBER)
+        if self.visuals:
+            u.blit(self.visuals.frame('wind' if item and 'wind' in item['title'].lower() else 'weather',age),702,151)
+        u.text('VISUAL FX',718,239,11,u.DIM)
         issued=dt.datetime.fromtimestamp(item['published'],dt.timezone.utc).strftime('%d %b %H:%M UTC') if item and item.get('published') else 'NOT PROVIDED'
         u.text('ISSUED '+issued+' / CHECK VALIDITY AT SOURCE',340,215,12,u.DIM)
         u.text(source_status('weather',data,errors,now),340,242,13,u.DIM)
@@ -154,7 +160,10 @@ class PreparednessDesktop:
         items=sample.get('items',[]) if sample else []
         flood=items[int(age/20)%len(items)] if items else None
         title=(flood['label']+' / '+flood['title']) if flood else ('No alerts returned / not an all-clear' if sample else 'Flood source unavailable')
-        self.paragraphs(title,340,325,47,18,2)
+        self.paragraphs(title,340,325,36,18,2)
+        if self.visuals:
+            u.blit(self.visuals.frame('water',age),702,315)
+        u.text('VISUAL FX',718,385,10,u.DIM)
         u.text(source_status('floods',data,errors,now),340,382,12,u.DIM)
         self.links.append(((324,317,500,85),flood['url'] if flood else LINKS['floods']))
         name='ncsc' if int(age/20)%2==0 else 'news'
@@ -162,7 +171,10 @@ class PreparednessDesktop:
         items=data.get(name,{}).get('items',[])
         item=items[int(age/40)%len(items)] if items else None
         u.panel(324,414,500,138,label,'')
-        self.paragraphs(item['title'] if item else ('No matching publications' if name in data else 'Source unavailable'),340,460,46,19,2)
+        self.paragraphs(item['title'] if item else ('No matching publications' if name in data else 'Source unavailable'),340,460,33,19,3)
+        if self.visuals:
+            u.blit(self.visuals.frame('orb',age),702,457)
+        u.text('VISUAL FX',718,539,10,u.DIM)
         published=dt.datetime.fromtimestamp(item['published'],dt.timezone.utc).strftime('%d %b %Y %H:%M UTC') if item and item.get('published') else 'DATE NOT PROVIDED'
         stale=not data.get(name) or name in errors or now-data[name]['fetched']>MAX_AGES[name]
         u.text(published+(' / STALE' if stale else ''),340,530,13,u.DIM)
@@ -183,6 +195,9 @@ class PreparednessDesktop:
         u.text(moment.strftime('%H:%M'),44,153,60,u.TEXT)
         u.text(moment.strftime('%S'),251,169,24,u.DIM)
         u.text(moment.strftime('%a %d %b %Y').upper(),44,224,18,u.DIM)
+        u.line((44,255),(291,255),u.DIM)
+        second_progress=(moment.second+moment.microsecond/1e6)/60
+        u.line((44,255),(44+247*second_progress,255),u.TEAL,2)
         u.panel(28,286,280,266,'UK THREAT / GOV.UK','')
         sample=data.get('threat')
         level=sample['level'].upper() if sample else 'UNAVAILABLE'
