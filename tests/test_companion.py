@@ -1,5 +1,7 @@
 import unittest
-from companion import Companion, find_lcd
+from companion import Companion, find_lcd, refresh_overdue
+from unittest.mock import patch
+from preparedness import INTERVALS
 from pathlib import Path
 import tempfile
 
@@ -25,3 +27,30 @@ class CompanionTests(unittest.TestCase):
                 self.assertEqual(find_lcd(root),'/dev/'+lcd)
             (root/'fb1'/'name').write_text('vc4drmfb')
             with self.assertRaises(RuntimeError):find_lcd(root)
+
+
+class RefreshFallbackTests(unittest.TestCase):
+    def test_fresh_shared_cache_does_not_make_duplicate_requests(self):
+        with patch('companion.PreparednessFeeds') as factory:
+            feeds = factory.return_value
+            feeds.snapshot.return_value = ({name: {'fetched': 10000} for name in INTERVALS}, set())
+            refresh_overdue(None, {}, {}, 10001)
+            feeds.refresh.assert_not_called()
+
+    def test_overdue_sources_refresh_with_bounded_failure_retries(self):
+        attempted = {}
+        with patch('companion.PreparednessFeeds') as factory:
+            feeds = factory.return_value
+            feeds.snapshot.return_value = ({}, set())
+            refresh_overdue(None, {}, attempted, 10000)
+            self.assertEqual([call.args[0] for call in feeds.refresh.call_args_list], ['threat', 'weather', 'floods'])
+            feeds.refresh.reset_mock()
+            refresh_overdue(None, {}, attempted, 10030)
+            feeds.refresh.assert_not_called()
+            refresh_overdue(None, {}, attempted, 10300)
+            self.assertEqual(feeds.refresh.call_count, 3)
+
+    def test_long_text_keeps_requested_font_size(self):
+        view = Companion()
+        view.text('A very long status ' * 20, 12, 12, 28)
+        self.assertEqual(set(view.fonts), {28})

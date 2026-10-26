@@ -69,7 +69,7 @@ Source: [2026 Doomsday Clock statement](https://thebulletin.org/doomsday-clock/2
 
 ### Source changes and briefings
 
-The earlier replay transcript is replaced in the main view by a quiet change strip. It reports additions/edits and items leaving a feed; leaving a feed is not described as resolution or an all-clear. There is no automatic replay of the whole source catalog. The separate companion display retains its existing layout.
+The earlier replay transcript is replaced in the main view by a quiet change strip. It reports additions/edits and items leaving a feed; leaving a feed is not described as resolution or an all-clear. There is no automatic replay of the whole source catalog. The companion display uses the large-text rotating pages described below.
 
 ### MPI3501 companion LCD
 
@@ -106,9 +106,19 @@ until performed on the hardware. To stop the companion, use
 `systemctl --user disable --now nexus-companion.service`. Restore the dated boot
 configuration backup to remove the persistent overlay.
 
-The companion LCD retains its compact status layout and rotates its secondary
-news line. The HDMI dashboard uses the persistent sidebars and central views
-described above.
+The companion LCD rotates every 12 seconds through national assessment, regional
+weather and local flood pages. Status text uses 42–64 px fonts, warning text wraps
+at 28 px, and metadata never forces the status to shrink. Each page keeps source
+freshness and the last successful check visible. The denser news and Doomsday
+readouts remain on the main dashboard.
+
+The LCD reads the shared cache every ten seconds. A background fallback checks
+for overdue threat, weather and flood sources every 30 seconds, requesting only
+those past their normal refresh interval. Failed attempts retry at most every
+five minutes and retain last known data with honest stale labels. This keeps
+LCD refresh independent of the selected main launcher view. Concurrent cache
+writes use unique temporary files and atomic replacement; snapshots never fetch.
+The HDMI dashboard uses the persistent sidebars and central views described above.
 
 ### Map and warning semantics
 
@@ -122,7 +132,7 @@ https://www.naturalearthdata.com/about/terms-of-use/
 Source: https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_50m_admin_0_countries.geojson
 Only UK and Ireland geometries are bundled in `data/uk-map.geojson`.
 
-The main dashboard's regional warning card and the companion warning strip use
+The main dashboard's regional warning card and the companion weather page use
 the retained warning model. Initial cached warnings are shown without being
 called new. New or changed warning identities and severities are tracked;
 headlines do not trigger warning alarms.

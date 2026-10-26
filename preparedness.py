@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 import re
 import threading
+import tempfile
 import time
 import urllib.parse
 import urllib.request
@@ -187,9 +188,15 @@ class PreparednessFeeds:
                 self.data[name] = result
                 self.errors.discard(name)
             try:
-                temporary = self.directory/f'{name}.tmp'
-                temporary.write_text(json.dumps(result))
-                temporary.replace(self.directory/f'{name}.json')
+                # HDMI and companion fallback may refresh concurrently.
+                with tempfile.NamedTemporaryFile(mode='w', dir=self.directory,
+                                                 prefix=name+'.', suffix='.tmp', delete=False) as handle:
+                    temporary = Path(handle.name)
+                    handle.write(json.dumps(result))
+                try:
+                    temporary.replace(self.directory/f'{name}.json')
+                finally:
+                    temporary.unlink(missing_ok=True)
             except OSError:
                 pass
             return True

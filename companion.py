@@ -6,12 +6,11 @@ import os
 from pathlib import Path
 import struct
 import time
+import threading
 
 import pygame
-from preparedness import PreparednessFeeds, MAX_AGES
-from preparedness_ui import load_doomsday_setting
-from terminal_theme import font, PALETTE
-from status_summary import summary
+from preparedness import PreparednessFeeds, MAX_AGES, INTERVALS
+from terminal_theme import PALETTE
 from alert_state import AlertState
 
 ROOT = Path(__file__).resolve().parent
@@ -63,81 +62,96 @@ class Companion:
         pygame.font.init()
         self.surface = pygame.Surface((480, 320), depth=16, masks=(0xf800, 0x07e0, 0x001f, 0))
         self.fonts = {}
-        self.setting = load_doomsday_setting()
         self.alerts = AlertState()
 
-    def text(self, value, x, y, size=18, colour='text', width=456):
-        size = int(size)
-        while True:
-            if size not in self.fonts:
-                self.fonts[size] = font(size)
-            face = self.fonts[size]
-            if face.size(value)[0] <= width or size <= 12:
-                break
-            size -= 1
+    def face(self, size):
+        if size not in self.fonts:
+            self.fonts[size] = pygame.font.SysFont('DejaVu Sans', size)
+        return self.fonts[size]
+
+    def text(self, value, x, y, size=24, colour='text', width=456):
+        # Never shrink status text to fit: wrap elsewhere, truncate metadata.
+        face = self.face(size)
         if face.size(value)[0] > width:
-            while value and face.size(value+'...')[0] > width:
+            while value and face.size(value+'…')[0] > width:
                 value = value[:-1]
-            value += '...'
+            value += '…'
         self.surface.blit(face.render(value, True, PALETTE[colour]), (x, y))
 
-    def lines(self, value, y, limit=3):
-        if 20 not in self.fonts:
-            self.fonts[20] = font(20)
-        face = self.fonts[20]
-        words = value.split()
+    def lines(self, value, y, limit=3, size=28, colour='text'):
+        face = self.face(size)
         rows, row = [], ''
-        for word in words:
+        for word in value.split():
             candidate = (row+' '+word).strip()
-            if row and face.size(candidate)[0] > 450:
+            if row and face.size(candidate)[0] > 456:
                 rows.append(row)
                 row = word
             else:
                 row = candidate
         rows.append(row)
-        if len(rows) > limit:
-            rows = rows[:limit]
-            rows[-1] = rows[-1][:-3]+'...'
-        for i, row in enumerate(rows):
-            self.text(row, 12, y+i*23, 20)
+        overflow = len(rows) > limit
+        for i, row in enumerate(rows[:limit]):
+            if overflow and i == limit-1:
+                row += ' …'
+            self.text(row, 12, y+i*(size+5), size, colour)
 
     def draw(self, data, now, age, scope):
         self.surface.fill(PALETTE['background'])
-        self.text('NEXUS / AUX 01', 12, 8, 19, 'accent')
-        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'), 370, 8, 19, 'accent', 100)
-        threat = data.get('threat')
-        self.text('UK TERRORISM / GOV.UK', 12, 37, 16, 'muted')
-        self.text(threat['level'].upper() if threat else 'UNAVAILABLE', 12, 55, 48, 'error')
-        stamp = dt.datetime.fromtimestamp(threat['fetched'], dt.timezone.utc).strftime('%d %b %H:%M UTC') if threat else '--'
-        stale = not threat or now-threat['fetched'] > MAX_AGES['threat']
-        self.text(('STALE / CHECK ' if stale else 'CACHED / CHECK ')+stamp, 12, 106, 14, 'error' if stale else 'muted')
-        pygame.draw.line(self.surface, PALETTE['border'], (12, 127), (468, 127))
-        setting = self.setting
-        seconds = str(setting['seconds_to_midnight']) if setting else '--'
-        self.text('DOOMSDAY / '+seconds+'s',12,134,20,'error',240)
-        self.text('BULLETIN / '+(setting['announced'] if setting else '--'),250,137,14,'muted',218)
-        self.text('MET OFFICE / '+summary('weather',data,now),12,163,19,'accent')
-        weather = data.get('weather', {})
-        warnings = weather.get('items', [])
-        rank = {'red':3, 'amber':2, 'yellow':1}
-        highest = max(warnings, key=lambda item: rank.get(item.get('colour'),0), default=None)
-        self.lines(highest['title'] if highest else ('No bulletins returned' if weather else 'Weather source unavailable'),186,limit=2)
-        self.text('EA FLOODS / '+summary('floods',data,now),12,237,19,'accent')
-        name = ('ncsc', 'news')[int(age/15)%2]
-        label = 'NCSC' if name == 'ncsc' else 'BBC'
+        page = int(age/12) % 3
+        name = ('threat', 'weather', 'floods')[page]
         sample = data.get(name)
         stale = not sample or now-sample['fetched'] > MAX_AGES[name]
-        items = sample.get('items', []) if sample else []
-        item = items[int(age/30)%len(items)] if items else None
-        alerts = self.alerts.update(data, (), now)
-        if alerts:
-            alert = alerts[int(age/8)%len(alerts)]
-            self.text(('STALE / ' if alert['stale'] else 'WARNING / ')+alert['title'],12,270,18,'error')
-            self.text(str(len(alerts))+' LISTED / '+alert['detail'],12,292,12,'error')
-            pygame.draw.rect(self.surface, PALETTE['error' if int(age)%2 else 'muted'], (2,260,476,58),2)
+        self.text(('NATIONAL ASSESSMENT', 'REGIONAL WEATHER', 'LOCAL FLOOD ALERTS')[page], 12, 8, 23, 'accent', 350)
+        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'), 382, 8, 23, 'accent', 86)
+        self.text('SOURCE UNAVAILABLE' if not sample else ('STALE · LAST KNOWN' if stale else 'LATEST SOURCE CHECK'),
+                  12, 42, 23, 'error' if stale else 'text')
+        retained = self.alerts.update(data, (), now)
+        if page == 0:
+            self.text('UK terrorism assessment', 12, 82, 26)
+            level = sample['level'].upper() if sample else 'UNAVAILABLE'
+            self.text(level, 12, 120, 56 if len(level) > 9 else 64, 'error')
+            self.text('GOV.UK · national context', 12, 207, 24, 'muted')
+        elif page == 1:
+            # Use the same validity and stale-retention model as the HDMI view.
+            alerts = [a for a in retained if a['source'] == 'weather']
+            alert = max(alerts, key=lambda a: a['rank'], default=None)
+            items = sample.get('items', []) if sample else []
+            highest = next((item for item in items if alert and item['title'] == alert['title']), {})
+            self.text((str(highest.get('colour', 'BULLETINS')).upper() if alert else 'CHECK SOURCE' if items else 'NO BULLETINS' if sample else 'UNAVAILABLE'),
+                      12, 78, 42, 'error' if alert else 'text')
+            self.lines(alert['title'] if alert else ('Listed bulletin validity: check source' if items else 'None returned · not an all-clear' if sample else 'Waiting for Met Office'), 136, 3, 28)
+            if alert:
+                self.text(alert['detail'], 12, 234, 18, 'muted')
         else:
-            self.text(label+(' [STALE]' if stale else '')+' / '+(item['title'] if item else 'No publication available'),12,272,17,'muted')
+            items = sample.get('items', []) if sample else []
+            self.text(str(len(items))+' ALERT'+('' if len(items) == 1 else 'S') if sample else 'UNAVAILABLE', 12, 78, 56, 'error' if items else 'text')
+            self.lines(items[int(age/12)%len(items)]['title'] if items else ('None returned · not an all-clear' if sample else 'Waiting for Environment Agency'), 149, 2, 28)
+            self.text(scope, 12, 223, 21, 'muted')
+        stamp = dt.datetime.fromtimestamp(sample['fetched']).strftime('%d %b %H:%M') if sample else 'No successful check'
+        self.text(('Last checked ' if sample else '')+stamp, 12, 257, 22, 'error' if stale else 'muted')
+        pygame.draw.line(self.surface, PALETTE['border'], (12, 288), (468, 288))
+        self.text(('GOV.UK', 'MET OFFICE', 'ENVIRONMENT AGENCY')[page], 12, 293, 18, 'muted', 360)
+        self.text(str(page+1)+' / 3', 398, 293, 18, 'accent', 70)
         return self.surface
+
+
+def refresh_overdue(cache, config, attempted, now):
+    """Refresh only overdue shared sources; main-view changes cannot strand LCD data."""
+    feeds = PreparednessFeeds(cache, config)
+    data, _ = feeds.snapshot()
+    for name in ('threat', 'weather', 'floods'):
+        sample = data.get(name)
+        due = not sample or now-sample['fetched'] >= INTERVALS[name]
+        if due and now-attempted.get(name, float('-inf')) >= 300:
+            attempted[name] = now
+            feeds.refresh(name)
+
+
+def fallback_worker(cache, config):
+    attempted = {}
+    while True:
+        refresh_overdue(cache, config, attempted, time.time())
+        time.sleep(30)
 
 
 def main():
@@ -152,6 +166,8 @@ def main():
     cache = Path(os.environ.get('NEXUS_CACHE', ROOT/'.cache'))/'preparedness'
     view = Companion()
     target = None if args.snapshot else Framebuffer(args.device or find_lcd())
+    if not args.snapshot:
+        threading.Thread(target=fallback_worker, args=(cache, config), daemon=True).start()
     start, refreshed = time.monotonic(), -100
     while True:
         age = time.monotonic()-start
