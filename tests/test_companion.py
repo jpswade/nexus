@@ -73,8 +73,8 @@ class PersistentConsoleTests(unittest.TestCase):
     def test_full_assessment_labels_fit_the_status_box(self):
         view=Companion()
         for level in ('LOW','MODERATE','SUBSTANTIAL','SEVERE','CRITICAL','UNKNOWN'):
-            size=38 if len(level)>6 else 54
-            self.assertLessEqual(view.face(size).size(level)[0],262,level)
+            size=22 if len(level)>8 else 26 if len(level)>6 else 36
+            self.assertLessEqual(view.face(size).size(level)[0],164,level)
 
 
 class ScifiMotionTests(unittest.TestCase):
@@ -116,3 +116,14 @@ class ScifiMotionTests(unittest.TestCase):
         for value in ('24 ms','12 ms','80 ms'):
             self.assertTrue(any(v==value and y>=266 for v,x,y in calls))
         self.assertFalse(any('CONNECTION' in v or 'CONNECTED' in v for v,x,y in calls))
+
+
+class WeatherEmphasisTests(unittest.TestCase):
+    def test_weather_icon_remains_visible_across_briefing_pages(self):
+        view=Companion()
+        data={'weather':{'fetched':10000,'items':[{'title':'Yellow wind warning','colour':'yellow'}]}}
+        with patch.object(view,'weather_icon') as icon:
+            for age in (3,16,29,42):
+                icon.reset_mock()
+                view.draw(data,10000,age,'')
+                self.assertTrue(any(call.args[1:3]==(414,65) for call in icon.call_args_list))
