@@ -8,6 +8,11 @@ import threading
 import time
 
 
+def sweep_duration(latency):
+    """Visual/probe cadence: faster healthy links, bounded even on failure."""
+    return 4.0 if latency is None else max(1.5, min(6.0, 1.5+latency/120))
+
+
 def gateway():
     for line in Path('/proc/net/route').read_text().splitlines()[1:]:
         fields = line.split()
@@ -31,6 +36,7 @@ class NetworkMonitor:
         self.lock = threading.Lock()
         self.state = {'label': 'CHECKING', 'detail': 'Waiting for probe', 'colour': 'muted', 'checked': None, 'latency': None, 'history': []}
         self.history = deque(maxlen=22)
+        self.sequence = 0
 
     def snapshot(self):
         with self.lock:
@@ -61,13 +67,14 @@ class NetworkMonitor:
             pass
         label, detail, colour = classify(bool(address), carrier, lan, latency)
         self.history.append(latency)
+        self.sequence += 1
         with self.lock:
             self.state = dict(label=label, detail=detail, colour=colour,
-                              checked=time.time(), latency=latency, history=list(self.history))
+                              checked=time.time(), latency=latency, history=list(self.history), sequence=self.sequence)
 
     def start(self):
         def worker():
             while True:
                 self.probe()
-                time.sleep(10)
+                time.sleep(sweep_duration(self.snapshot()["latency"]))
         threading.Thread(target=worker, daemon=True).start()

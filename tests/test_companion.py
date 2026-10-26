@@ -43,12 +43,12 @@ class RefreshFallbackTests(unittest.TestCase):
             feeds = factory.return_value
             feeds.snapshot.return_value = ({}, set())
             refresh_overdue(None, {}, attempted, 10000)
-            self.assertEqual([call.args[0] for call in feeds.refresh.call_args_list], ['threat', 'weather', 'floods'])
+            self.assertEqual([call.args[0] for call in feeds.refresh.call_args_list], ['threat', 'weather', 'floods', 'ncsc', 'news'])
             feeds.refresh.reset_mock()
             refresh_overdue(None, {}, attempted, 10030)
             feeds.refresh.assert_not_called()
             refresh_overdue(None, {}, attempted, 10300)
-            self.assertEqual(feeds.refresh.call_count, 3)
+            self.assertEqual(feeds.refresh.call_count, 5)
 
     def test_long_text_keeps_requested_font_size(self):
         view = Companion()
@@ -75,3 +75,33 @@ class PersistentConsoleTests(unittest.TestCase):
         for level in ('LOW','MODERATE','SUBSTANTIAL','SEVERE','CRITICAL','UNKNOWN'):
             size=38 if len(level)>6 else 54
             self.assertLessEqual(view.face(size).size(level)[0],262,level)
+
+
+class ScifiMotionTests(unittest.TestCase):
+    def test_threat_box_stays_visible_during_secondary_reveals(self):
+        view=Companion()
+        data={'threat':{'level':'severe','fetched':10000}}
+        for age in (0,12.9,13,13.2,19,26,39):
+            surface=view.draw(data,10000,age,'')
+            pixel=surface.get_at((20,115))
+            self.assertGreater(pixel.r,180)
+            self.assertGreater(pixel.g,100)
+
+    def test_yellow_weather_has_a_yellow_fill(self):
+        view=Companion()
+        data={'weather':{'fetched':10000,'items':[{'title':'Yellow wind warning','colour':'yellow'}]}}
+        surface=view.draw(data,10000,3,'')
+        pixel=surface.get_at((310,190))
+        self.assertGreater(pixel.r,200)
+        self.assertGreater(pixel.g,180)
+        self.assertLess(pixel.b,100)
+
+    def test_refresh_reveal_does_not_restart_other_slot(self):
+        view=Companion()
+        data={'weather':{'fetched':10000,'items':[]},'floods':{'fetched':10000,'items':[]}}
+        view.draw(data,10000,3,'')
+        side=view.tiles['side']
+        data['weather']['fetched']=10001
+        view.draw(data,10001,4,'')
+        self.assertEqual(view.tiles['side'],side)
+        self.assertEqual(view.tiles['main'][1],4)
