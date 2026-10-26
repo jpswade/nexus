@@ -106,11 +106,24 @@ until performed on the hardware. To stop the companion, use
 `systemctl --user disable --now nexus-companion.service`. Restore the dated boot
 configuration backup to remove the persistent overlay.
 
-The companion LCD rotates every 12 seconds through national assessment, regional
-weather and local flood pages. Status text uses 42–64 px fonts, warning text wraps
-at 28 px, and metadata never forces the status to shrink. Each page keeps source
-freshness and the last successful check visible. The denser news and Doomsday
-readouts remain on the main dashboard.
+The companion LCD uses two boxed columns. The large left panel rotates every
+12 seconds through national assessment, regional weather and local flooding;
+connection, weather and flood summaries stay visible at right. A continuous
+edge rail retains the highest listed source warning colour across pages (red,
+amber or yellow; cyan means no listed warning, not an all-clear). Stale data is
+labelled in the header and with an asterisk on the compact source summaries.
+National assessment and regional alerts remain separate source descriptions.
+
+The connection box checks the default route and interface carrier, pings the
+local gateway, and measures TCP connection time to port 443 on 1.1.1.1, with
+8.8.8.8 as a fallback. Probes run in a background thread every ten seconds with
+bounded timeouts. Missing link/route says LOCAL DOWN; a responsive gateway with
+failed external probes says WAN CHECK; ambiguous gateway/external silence says
+LINK CHECK. CONNECTED means a TCP probe succeeded, not proof that DNS or every
+feed works. Probe results older than 35 seconds are marked stale. The moving
+scan shows render liveness; chart bars are actual measured TCP latency and
+failed probes appear as amber gaps. No traffic or latency is simulated.
+Snapshots do not start probes. Configured LCD orientation remains unchanged.
 
 The LCD reads the shared cache every ten seconds. A background fallback checks
 for overdue threat, weather and flood sources every 30 seconds, requesting only

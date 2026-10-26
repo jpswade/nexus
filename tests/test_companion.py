@@ -54,3 +54,18 @@ class RefreshFallbackTests(unittest.TestCase):
         view = Companion()
         view.text('A very long status ' * 20, 12, 12, 28)
         self.assertEqual(set(view.fonts), {28})
+
+
+class PersistentConsoleTests(unittest.TestCase):
+    def test_warning_colour_stays_visible_on_every_page(self):
+        view=Companion()
+        data={'threat':{'level':'severe','fetched':10000}}
+        for age in (0,12,24):
+            pixel=view.draw(data,10000,age,'').get_at((2,150))
+            self.assertGreater(pixel.r,200)
+            self.assertGreater(pixel.g,100)
+            self.assertLess(pixel.b,150)
+
+    def test_unknown_weather_colour_is_not_invented(self):
+        from companion import weather_label
+        self.assertEqual(weather_label({'title':'Unknown warning'}, {'items':[{'title':'Unknown warning'}]}),'BULLETIN')

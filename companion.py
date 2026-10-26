@@ -12,6 +12,7 @@ import pygame
 from preparedness import PreparednessFeeds, MAX_AGES, INTERVALS
 from terminal_theme import PALETTE
 from alert_state import AlertState
+from companion_network import NetworkMonitor
 
 ROOT = Path(__file__).resolve().parent
 
@@ -57,6 +58,13 @@ class Framebuffer:
         self.file.write(payload)
 
 
+def weather_label(alert, sample):
+    for item in (sample or {}).get('items', []):
+        if item['title'] == alert['title'] and item.get('colour') in ('red','amber','yellow'):
+            return item['colour'].upper()
+    return 'BULLETIN'
+
+
 class Companion:
     def __init__(self):
         pygame.font.init()
@@ -76,14 +84,14 @@ class Companion:
             while value and face.size(value+'…')[0] > width:
                 value = value[:-1]
             value += '…'
-        self.surface.blit(face.render(value, True, PALETTE[colour]), (x, y))
+        self.surface.blit(face.render(value, True, PALETTE.get(colour, colour)), (x, y))
 
-    def lines(self, value, y, limit=3, size=28, colour='text'):
+    def lines(self, value, y, limit=3, size=28, colour='text', x=22, width=260):
         face = self.face(size)
         rows, row = [], ''
         for word in value.split():
             candidate = (row+' '+word).strip()
-            if row and face.size(candidate)[0] > 456:
+            if row and face.size(candidate)[0] > width:
                 rows.append(row)
                 row = word
             else:
@@ -93,45 +101,75 @@ class Companion:
         for i, row in enumerate(rows[:limit]):
             if overflow and i == limit-1:
                 row += ' …'
-            self.text(row, 12, y+i*(size+5), size, colour)
+            self.text(row, x, y+i*(size+5), size, colour, width)
 
-    def draw(self, data, now, age, scope):
+    def box(self, rect, title):
+        pygame.draw.rect(self.surface, PALETTE['panel'], rect)
+        pygame.draw.rect(self.surface, PALETTE['border'], rect, 1)
+        self.text(title, rect[0]+10, rect[1]+7, 17, 'muted', rect[2]-20)
+
+    def draw(self, data, now, age, scope, network=None):
         self.surface.fill(PALETTE['background'])
+        retained = self.alerts.update(data, (), now)
+        # A persistent source-backed rail, independent of the rotating page.
+        highest = max((a['rank'] for a in retained), default=0)
+        missing = any(not data.get(n) or now-data[n]['fetched'] > MAX_AGES[n]
+                      for n in ('threat', 'weather', 'floods'))
+        rail = '#ff5555' if highest >= 5 else '#ffbf66' if highest >= 3 else '#e5d558' if highest else PALETTE['muted' if missing else 'accent']
+        pygame.draw.rect(self.surface, rail, (0, 0, 6, 320))
+        self.text('NEXUS / DATA STALE' if missing else 'NEXUS / LIVE', 16, 5, 21, 'error' if missing else 'accent', 280)
+        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'), 355, 5, 21, 'text', 118)
         page = int(age/12) % 3
         name = ('threat', 'weather', 'floods')[page]
         sample = data.get(name)
         stale = not sample or now-sample['fetched'] > MAX_AGES[name]
-        self.text(('NATIONAL ASSESSMENT', 'REGIONAL WEATHER', 'LOCAL FLOOD ALERTS')[page], 12, 8, 23, 'accent', 350)
-        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'), 382, 8, 23, 'accent', 86)
-        self.text('SOURCE UNAVAILABLE' if not sample else ('STALE · LAST KNOWN' if stale else 'LATEST SOURCE CHECK'),
-                  12, 42, 23, 'error' if stale else 'text')
-        retained = self.alerts.update(data, (), now)
+        self.box((14, 38, 282, 274), ('UK ASSESSMENT', 'REGIONAL WEATHER', 'LOCAL FLOODS')[page])
+        self.text('UNAVAILABLE' if not sample else 'STALE / LAST KNOWN' if stale else 'SOURCE FRESH', 24, 70, 19, 'error' if stale else 'accent', 262)
         if page == 0:
-            self.text('UK terrorism assessment', 12, 82, 26)
-            level = sample['level'].upper() if sample else 'UNAVAILABLE'
-            self.text(level, 12, 120, 56 if len(level) > 9 else 64, 'error')
-            self.text('GOV.UK · national context', 12, 207, 24, 'muted')
+            level = sample['level'].upper() if sample else 'UNKNOWN'
+            self.text(level, 24, 110, 38 if len(level)>8 else 54, 'error' if highest else 'text', 262)
+            self.lines('UK terrorism assessment', 182, 2, 26)
+            self.text('GOV.UK / NATIONAL',24,253,17,'muted',262)
         elif page == 1:
-            # Use the same validity and stale-retention model as the HDMI view.
-            alerts = [a for a in retained if a['source'] == 'weather']
-            alert = max(alerts, key=lambda a: a['rank'], default=None)
-            items = sample.get('items', []) if sample else []
-            highest = next((item for item in items if alert and item['title'] == alert['title']), {})
-            self.text((str(highest.get('colour', 'BULLETINS')).upper() if alert else 'CHECK SOURCE' if items else 'NO BULLETINS' if sample else 'UNAVAILABLE'),
-                      12, 78, 42, 'error' if alert else 'text')
-            self.lines(alert['title'] if alert else ('Listed bulletin validity: check source' if items else 'None returned · not an all-clear' if sample else 'Waiting for Met Office'), 136, 3, 28)
-            if alert:
-                self.text(alert['detail'], 12, 234, 18, 'muted')
+            alerts = [a for a in retained if a['source']=='weather']
+            alert = max(alerts, key=lambda a:a['rank'], default=None)
+            colour = weather_label(alert, sample) if alert else 'NONE LISTED' if sample else 'UNKNOWN'
+            self.text(colour,24,101,35,'error' if alert else 'text',262)
+            self.lines(alert['title'] if alert else 'No current bulletins returned' if sample else 'Waiting for Met Office',148,3,24)
+            self.text(('VALIDITY / CHECK SOURCE' if 'CHECK VALIDITY' in alert['detail'] else alert['detail']) if alert else 'MET OFFICE / REGIONAL',24,253,16,'muted',262)
         else:
-            items = sample.get('items', []) if sample else []
-            self.text(str(len(items))+' ALERT'+('' if len(items) == 1 else 'S') if sample else 'UNAVAILABLE', 12, 78, 56, 'error' if items else 'text')
-            self.lines(items[int(age/12)%len(items)]['title'] if items else ('None returned · not an all-clear' if sample else 'Waiting for Environment Agency'), 149, 2, 28)
-            self.text(scope, 12, 223, 21, 'muted')
-        stamp = dt.datetime.fromtimestamp(sample['fetched']).strftime('%d %b %H:%M') if sample else 'No successful check'
-        self.text(('Last checked ' if sample else '')+stamp, 12, 257, 22, 'error' if stale else 'muted')
-        pygame.draw.line(self.surface, PALETTE['border'], (12, 288), (468, 288))
-        self.text(('GOV.UK', 'MET OFFICE', 'ENVIRONMENT AGENCY')[page], 12, 293, 18, 'muted', 360)
-        self.text(str(page+1)+' / 3', 398, 293, 18, 'accent', 70)
+            items = sample.get('items',[]) if sample else []
+            self.text(str(len(items))+' ALERTS' if sample else 'UNKNOWN',24,104,44,'error' if items else 'text',262)
+            self.lines(items[int(age/12)%len(items)]['title'] if items else 'None returned / check source' if sample else 'Waiting for flood source',165,2,24)
+            self.text(scope,24,253,16,'muted',262)
+        stamp = dt.datetime.fromtimestamp(sample['fetched']).strftime('%H:%M / %d %b') if sample else 'No successful check'
+        self.text(stamp,24,282,20,'error' if stale else 'muted',262)
+        self.box((304,38,168,132),'CONNECTION')
+        net = network or {'label':'CHECKING','detail':'Waiting for probe','colour':'muted','checked':None,'history':[]}
+        old = net.get('checked') is not None and now-net['checked']>35
+        label = 'PROBE STALE' if old else net['label']
+        tone = 'error' if old else net['colour']
+        pygame.draw.rect(self.surface, PALETTE[tone], (304,38,168,132), 2)
+        self.text(label,314,67,20,tone,148)
+        self.text(net['detail'],314,95,15,'muted',148)
+        # Historical bars are measured TCP connection times, gaps are failures.
+        for i, value in enumerate(net.get('history',[])):
+            h = min(30,max(3,int(value/5))) if value is not None else 3
+            pygame.draw.rect(self.surface, PALETTE['accent' if value is not None else 'error'],(314+i*6,149-h,4,h))
+        if not old and net.get('checked') is not None:
+            # Moving scan shows render liveness; the labelled result is probe-backed.
+            x = 314+int(age*30)%145
+            pygame.draw.line(self.surface,PALETTE[tone],(x,154),(x+3,154),2)
+        for i, source in enumerate(('weather','floods')):
+            y=178+i*70
+            self.box((304,y,168,64),'WEATHER' if i==0 else 'FLOODS')
+            sample=data.get(source)
+            alerts=[a for a in retained if a['source']==source]
+            stale = not sample or now-sample['fetched']>MAX_AGES[source]
+            value = 'UNKNOWN' if not sample else str(len(alerts))+' LISTED'
+            if source=='weather' and alerts:
+                value=weather_label(max(alerts, key=lambda a:a['rank']), sample)
+            self.text(value+(' *' if stale else ''),314,y+28,24,'error' if alerts or stale else 'text',148)
         return self.surface
 
 
@@ -168,6 +206,9 @@ def main():
     target = None if args.snapshot else Framebuffer(args.device or find_lcd())
     if not args.snapshot:
         threading.Thread(target=fallback_worker, args=(cache, config), daemon=True).start()
+    network = NetworkMonitor()
+    if not args.snapshot:
+        network.start()
     start, refreshed = time.monotonic(), -100
     while True:
         age = time.monotonic()-start
@@ -176,7 +217,7 @@ def main():
             feeds = PreparednessFeeds(cache, config)
             data, _ = feeds.snapshot()
             refreshed = age
-        surface = view.draw(data, time.time(), age, feeds.flood_scope)
+        surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot())
         if rotation == 180:
             surface = pygame.transform.rotate(surface, 180)
         if args.snapshot:
