@@ -210,23 +210,29 @@ class Companion:
         tone='error' if old or checked is not None and not good else net['colour']
         pygame.draw.rect(self.surface,PALETTE['panel'],(14,266,458,53))
         current=str(round(latency))+' ms' if good else 'STALE' if old else 'NO REPLY' if checked else '--'
-        for x,label,value in ((24,'PING / TCP',current),(178,'MIN / SESSION',net.get('minimum')),(332,'MAX / SESSION',net.get('maximum'))):
-            self.text(label,x,267,13,'muted',140)
-            value=value if isinstance(value,str) else '--' if value is None else str(round(value))+' ms'
-            self.text(value,x,283,24,tone if x==24 else 'text',140)
-        pygame.draw.line(self.surface,PALETTE['border'],(24,315),(460,315),2)
+        low=net.get('minimum');high=net.get('maximum')
+        low_text='--' if low is None else str(round(low))
+        high_text='--' if high is None else str(round(high))
+        self.text('PING '+current,294,269,22,tone,172)
+        self.text('MIN '+low_text+' / MAX '+high_text,294,300,13,'text',172)
+        # A substantial sweep track, with all readings grouped to its right.
+        track=pygame.Rect(24,281,254,22)
+        pygame.draw.rect(self.surface,PALETTE['border'],track,border_radius=3)
+        previous_clip=self.surface.get_clip()
+        self.surface.set_clip(track)
         if good:
             phase=min(1,max(0,(now-checked)/sweep_duration(latency)))
-            head=24+int(phase*436)
-            for i in range(12):
-                x=head-i*3
-                if x>=24:
-                    pygame.draw.line(self.surface,PALETTE['accent'],(x,312),(x,317),1)
+            head=24+int(phase*254)
+            for i in range(16):
+                x=head-i*4
+                colour=PALETTE['accent'] if i<5 else PALETTE['muted']
+                pygame.draw.rect(self.surface,colour,(x,283,3,18))
         else:
-            for i in range(24):
+            for i in range(15):
                 x=24+i*18
                 if int(age*3+i)%3:
-                    pygame.draw.line(self.surface,PALETTE[tone],(x,314),(x+7,316),2)
+                    pygame.draw.line(self.surface,PALETTE[tone],(x,284),(x+10,300),3)
+        self.surface.set_clip(previous_clip)
         return self.surface
 
 
