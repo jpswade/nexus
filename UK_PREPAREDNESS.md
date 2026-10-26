@@ -188,3 +188,16 @@ probe is successful and fresh. It does not represent individual packets or
 probe completion. Numeric readings still come only from real probes; failures
 and stale probes stop the healthy sweep. Frame pacing targets the LCD driver's
 10 fps and includes render time.
+
+### Optional red LED
+
+After installing, run `sudo sh ~/dashboard/enable-warning-led.sh` once, then
+`systemctl --user enable --now nexus-warning-led.service`. The helper grants your
+account access only to the PWR LED brightness/trigger controls and reapplies that
+access at boot. The indicator itself runs as your normal user. It flashes at
+1 Hz for fresh in-force weather warnings, local flood alerts, or a severe/critical
+national threat. Upcoming, unknown-validity and stale weather alerts do not flash.
+With no qualifying warnings, or on a normal service stop, it restores the original
+LED trigger. While flashing, the red LED is a Nexus indicator rather than the
+normal power-status indicator. Disable with
+`systemctl --user disable --now nexus-warning-led.service`.
