@@ -172,13 +172,13 @@ class Companion:
         net=network or dict(label='CHECKING',detail='Waiting for probe',colour='muted',checked=None,latency=None,history=[])
         old=net.get('checked') is not None and now-net['checked']>35
         tone='error' if old else net['colour']
-        self.box((304,31,168,91),'CONNECTION')
+        self.box((304,31,168,91),'NET / SESSION')
         self.text('PROBE STALE' if old else net['label'],314,56,20,tone,148)
         self.text(net['detail'],314,84,17,tone,148)
-        # Small measured history stays separate from the animated bottom sweep.
-        for i,value in enumerate(net.get('history',[])):
-            h=min(13,max(2,int(value/10))) if value is not None else 2
-            pygame.draw.rect(self.surface,PALETTE['accent' if value is not None else 'error'],(314+i*6,117-h,4,h))
+        low=net.get('minimum');high=net.get('maximum')
+        low_text='--' if low is None else str(round(low))
+        high_text='--' if high is None else str(round(high))
+        self.text('MIN '+low_text+' / MAX '+high_text+' ms',314,105,12,'muted',148)
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
         label=weather_label(warning,weather) if warning else 'NONE LISTED' if weather else 'UNKNOWN'

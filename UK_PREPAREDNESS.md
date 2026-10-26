@@ -171,3 +171,8 @@ resolved or an all-clear. Space freezes animation while source refresh and
 warning lifecycle continue. Click a source card or press O to open its source.
 
 Set `"companion_rotation": 180` in your private `config.json` to turn the small LCD upside down (default `0`). Restart `nexus-companion.service` after changing it. This leaves HDMI orientation unchanged and survives updates.
+
+The companion connection box shows current TCP latency plus MIN/MAX successful
+latency since that companion service started (milliseconds, including fallback
+probe targets). Failed probes do not change the extrema. Restarting the service
+resets the session; no samples are displayed as `--`.
