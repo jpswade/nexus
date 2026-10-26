@@ -34,9 +34,10 @@ def classify(route, carrier, lan, wan):
 class NetworkMonitor:
     def __init__(self):
         self.lock = threading.Lock()
-        self.state = {'label': 'CHECKING', 'detail': 'Waiting for probe', 'colour': 'muted', 'checked': None, 'latency': None, 'history': []}
+        self.state = {'label': 'CHECKING', 'detail': 'Waiting for probe', 'colour': 'muted', 'checked': None, 'latency': None, 'minimum': None, 'maximum': None, 'history': []}
         self.history = deque(maxlen=22)
         self.sequence = 0
+        self.minimum = self.maximum = None
 
     def snapshot(self):
         with self.lock:
@@ -66,11 +67,14 @@ class NetworkMonitor:
         except (OSError, ValueError, IndexError, subprocess.SubprocessError):
             pass
         label, detail, colour = classify(bool(address), carrier, lan, latency)
+        if latency is not None:
+            self.minimum = latency if self.minimum is None else min(self.minimum, latency)
+            self.maximum = latency if self.maximum is None else max(self.maximum, latency)
         self.history.append(latency)
         self.sequence += 1
         with self.lock:
             self.state = dict(label=label, detail=detail, colour=colour,
-                              checked=time.time(), latency=latency, history=list(self.history), sequence=self.sequence)
+                              checked=time.time(), latency=latency, minimum=self.minimum, maximum=self.maximum, history=list(self.history), sequence=self.sequence)
 
     def start(self):
         def worker():

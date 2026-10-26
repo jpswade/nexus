@@ -41,3 +41,18 @@ class NetworkTests(unittest.TestCase):
             self.assertEqual(monitor.snapshot()['sequence'],1)
             monitor.probe()
             self.assertEqual(monitor.snapshot()['sequence'],2)
+
+    def test_session_extrema_ignore_failures_and_outlive_recent_history(self):
+        monitor=NetworkMonitor()
+        self.assertIsNone(monitor.snapshot()['minimum'])
+        with patch('companion_network.gateway',return_value=('192.0.2.1','eth0')), patch('companion_network.Path.read_text',return_value='1'), patch('companion_network.subprocess.run'), patch('companion_network.socket.create_connection'), patch('companion_network.time.monotonic',side_effect=[1,1.020,2,2.080,3,3.010]):
+            for _ in range(3):monitor.probe()
+        self.assertAlmostEqual(monitor.snapshot()['minimum'],10)
+        self.assertAlmostEqual(monitor.snapshot()['maximum'],80)
+        with patch('companion_network.gateway',return_value=(None,None)):
+            for _ in range(25):monitor.probe()
+        state=monitor.snapshot()
+        self.assertIsNone(state['latency'])
+        self.assertAlmostEqual(state['minimum'],10)
+        self.assertAlmostEqual(state['maximum'],80)
+        self.assertEqual(state['history'],[None]*22)
