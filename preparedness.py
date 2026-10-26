@@ -1,5 +1,6 @@
 """UK public-source preparedness feeds; never synthesises a threat score."""
 import datetime as dt
+from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 import hashlib
@@ -117,10 +118,10 @@ def parse_feed(name, raw):
             continue
         seen.add((title, url))
         items.append({'title': title, 'url': url,
-                      'published': rss_date(item.findtext('pubDate')) or channel_date,
+                      'published': rss_date(item.findtext('pubDate')) or (None if name == 'ncsc' else channel_date),
                       'description': plain(item.findtext('description')) if name == 'weather' else '',
                       'colour': title.split()[0].lower() if name == 'weather' else None})
-    return {'items': items[:100], 'published': channel_date}
+    return {'items': items[:100], 'published': channel_date, 'item_dates': True}
 
 
 def build_sources(config):
@@ -219,3 +220,27 @@ def source_status(name, data, errors, now):
     stale = name in errors or now-sample['fetched'] > MAX_AGES[name]
     stamp = dt.datetime.fromtimestamp(sample['fetched'], dt.timezone.utc).strftime('%d %b %H:%M UTC')
     return ('STALE / LAST CHECK ' if stale else 'CHECKED ')+stamp
+
+
+def display_items(name, sample, now):
+    """Filter NCSC at render time so cached headlines age out at UK midnight."""
+    items = (sample or {}).get('items', [])
+    if name != 'ncsc':
+        return items
+    # Earlier caches may have substituted the feed build date for article dates.
+    if not (sample or {}).get('item_dates'):
+        return []
+    today = dt.datetime.fromtimestamp(now, ZoneInfo('Europe/London')).date()
+    result = []
+    for item in items:
+        stamp = item.get('published')
+        try:
+            if stamp is not None and stamp <= now and dt.datetime.fromtimestamp(stamp, ZoneInfo('Europe/London')).date() == today:
+                result.append(item)
+        except (TypeError, ValueError, OverflowError, OSError):
+            continue
+    return result
+
+
+def article_date(item):
+    return dt.datetime.fromtimestamp(item['published'], ZoneInfo('Europe/London')).strftime('%d %b %Y %H:%M %Z')

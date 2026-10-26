@@ -10,7 +10,7 @@ import threading
 import math
 
 import pygame
-from preparedness import PreparednessFeeds, MAX_AGES, INTERVALS
+from preparedness import display_items, article_date, PreparednessFeeds, MAX_AGES, INTERVALS
 from terminal_theme import PALETTE
 from alert_state import AlertState
 from companion_network import NetworkMonitor, sweep_duration
@@ -184,8 +184,8 @@ class Companion:
         source=('weather','floods','ncsc','news')[index]
         sample=data.get(source)
         stale=not sample or now-sample['fetched']>MAX_AGES[source]
-        items=sample.get('items',[]) if sample else []
-        title=warning['title'] if index==0 and warning else items[int(age/52)%len(items)]['title'] if items else 'No bulletins listed' if sample else 'Waiting for source'
+        items=display_items(source,sample,now)
+        title=warning['title'] if index==0 and warning else items[int(age/52)%len(items)]['title'] if items else 'No NCSC articles today' if source=='ncsc' and sample else 'No bulletins listed' if sample else 'Waiting for source'
         if index==0 and warning:
             # The fixed weather tile already carries colour and regional context.
             title=title.split(' affecting ')[0]
@@ -195,6 +195,8 @@ class Companion:
         if index==0 and warning:
             self.weather_icon(warning['title'],416,174,age,wi)
         detail=warning['detail'] if index==0 and warning else 'Regional bulletins' if index==0 else scope if index==1 else 'Source publication'
+        if source=='ncsc':
+            detail=article_date(items[int(age/52)%len(items)]) if items else 'PUBLISHED TODAY / UK TIME'
         self.text(detail,24,234,15,ink,438)
         self.shutter('main',(index,(sample or {}).get('fetched')),age,(14,130,458,128),13)
         for x,y,w,h in ((14,31,184,91),(206,31,266,91)):
