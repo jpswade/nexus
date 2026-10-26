@@ -113,8 +113,8 @@ class ScifiMotionTests(unittest.TestCase):
         view.text=capture
         net=dict(colour='accent',checked=10000,latency=24,minimum=12,maximum=80)
         view.draw({},10000,3,'',net)
-        for value in ('24 ms','12 ms','80 ms'):
-            self.assertTrue(any(v==value and y>=266 for v,x,y in calls))
+        for value in ('PING 24 ms','MIN 12 / MAX 80'):
+            self.assertTrue(any(v==value and y>=266 and x>=294 for v,x,y in calls))
         self.assertFalse(any('CONNECTION' in v or 'CONNECTED' in v for v,x,y in calls))
 
 
