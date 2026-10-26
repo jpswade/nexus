@@ -127,7 +127,7 @@ class Companion:
         self.text('UNAVAILABLE' if not sample else 'STALE / LAST KNOWN' if stale else 'SOURCE FRESH', 24, 70, 19, 'error' if stale else 'accent', 262)
         if page == 0:
             level = sample['level'].upper() if sample else 'UNKNOWN'
-            self.text(level, 24, 110, 38 if len(level)>8 else 54, 'error' if highest else 'text', 262)
+            self.text(level, 24, 110, 38 if len(level)>6 else 54, 'error' if highest else 'text', 262)
             self.lines('UK terrorism assessment', 182, 2, 26)
             self.text('GOV.UK / NATIONAL',24,253,17,'muted',262)
         elif page == 1:
