@@ -7,7 +7,7 @@ import math
 from cyber_graphics import draw_orb
 from status_summary import summary
 from alert_state import AlertState
-from preparedness import LINKS, MAX_AGES, LEVELS, source_status
+from preparedness import display_items, article_date, LINKS, MAX_AGES, LEVELS, source_status
 
 NAMES = ('UK situation console', 'Incident & cyber watch', 'UK situation map', 'Minutes to midnight')
 PREPARE_TIPS = (
@@ -102,17 +102,17 @@ class PreparednessDesktop:
         for name, label in [('weather', 'MET OFFICE'), ('floods', 'ENV. AGENCY'),
                             ('ncsc', 'NCSC / PUBLICATION'), ('news', 'BBC / MEDIA REPORT')]:
             sample = data.get(name, {})
-            items = sample.get('items', [])[:6]
+            items = display_items(name, sample, now)[:6]
             state = source_status(name, data, errors, now)
             rows.append((label, u.TEAL, LINKS.get(name, LINKS['prepare'])))
             rows.append((state, u.DIM, None))
             if not items:
-                rows.append(('No items returned' if sample else 'Waiting for source...', u.DIM, None))
+                rows.append(('No NCSC articles published today' if name == 'ncsc' and sample else 'No items returned' if sample else 'Waiting for source...', u.DIM, None))
             for item in items:
                 rows.append((label, u.TEAL, item.get('url')))
                 published = item.get('published')
                 if published:
-                    stamp = dt.datetime.fromtimestamp(published, dt.timezone.utc).strftime('%d %b %H:%M UTC')
+                    stamp = article_date(item) if name == 'ncsc' else dt.datetime.fromtimestamp(published, dt.timezone.utc).strftime('%d %b %H:%M UTC')
                     rows.append((stamp, u.DIM, None))
                 for row in textwrap.wrap(item['title'], 38):
                     rows.append((row, u.TEXT, item.get('url')))
@@ -170,10 +170,10 @@ class PreparednessDesktop:
         self.links.append(((324,317,500,85),flood['url'] if flood else LINKS['floods']))
         name='ncsc' if int(age/20)%2==0 else 'news'
         label='NCSC / OFFICIAL PUBLICATION' if name=='ncsc' else 'BBC / MEDIA REPORT'
-        items=data.get(name,{}).get('items',[])
+        items=display_items(name,data.get(name),now)
         item=items[int(age/40)%len(items)] if items else None
         u.panel(324,414,500,138,label,'')
-        self.paragraphs(item['title'] if item else ('No matching publications' if name in data else 'Source unavailable'),340,460,33,19,3)
+        self.paragraphs(item['title'] if item else ('No NCSC articles published today' if name=='ncsc' and name in data else 'No matching publications' if name in data else 'Source unavailable'),340,460,33,19,3)
         if self.visuals:
             u.blit(self.visuals.frame('orb',age),702,457)
         u.text('VISUAL FX',718,539,10,u.DIM)
