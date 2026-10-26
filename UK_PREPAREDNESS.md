@@ -106,27 +106,38 @@ until performed on the hardware. To stop the companion, use
 `systemctl --user disable --now nexus-companion.service`. Restore the dated boot
 configuration backup to remove the persistent overlay.
 
-The companion LCD uses two boxed columns. The large left panel rotates every
-12 seconds through national assessment, regional weather and local flooding;
-connection, weather and flood summaries stay visible at right. A continuous
-edge rail retains the highest listed source warning colour across pages (red,
-amber or yellow; cyan means no listed warning, not an all-clear). Stale data is
-labelled in the header and with an asterisk on the compact source summaries.
-National assessment and regional alerts remain separate source descriptions.
+The companion LCD uses a sci-fi two-column console. The threat assessment box
+is always visible at top left; the connection box stays at top right. The main
+content slot cycles every 13 seconds through weather, floods and NCSC; a smaller
+slot changes on an independent 19-second schedule through floods, BBC and source
+freshness. Slots briefly shutter closed and reveal their replacement, also when
+their source cache refreshes. Threat text is never shuttered. Moving corner
+accents and weather-type symbols provide motion without blinking warning words.
+The render loop targets up to eight frames per second, bounded by framebuffer I/O.
 
-The connection box checks the default route and interface carrier, pings the
-local gateway, and measures TCP connection time to port 443 on 1.1.1.1, with
-8.8.8.8 as a fallback. Probes run in a background thread every ten seconds with
-bounded timeouts. Missing link/route says LOCAL DOWN; a responsive gateway with
-failed external probes says WAN CHECK; ambiguous gateway/external silence says
-LINK CHECK. CONNECTED means a TCP probe succeeded, not proof that DNS or every
-feed works. Probe results older than 35 seconds are marked stale. The moving
-scan shows render liveness; chart bars are actual measured TCP latency and
-failed probes appear as amber gaps. No traffic or latency is simulated.
+Weather panels use solid yellow, amber or red backgrounds from the bulletin's
+reported colour, with dark high-contrast text. Wind, rain and snow/ice get vector
+symbols based on the warning title; other bulletins get a warning triangle.
+These represent bulletin type, not invented current weather observations.
+The continuous warning rail and explicit stale header/asterisks remain.
+
+The connection box checks default route/carrier, pings the gateway and measures
+TCP port-443 connection time to 1.1.1.1, with 8.8.8.8 as fallback. After a probe
+completes, the bottom sweep travels in 1.5–6 seconds according to measured latency:
+low latency is faster. The worker waits that duration before the next bounded
+probe; its real completion counter and measured latency update on completion.
+The sweep can briefly wait at the end while a probe is in flight. It never
+increments a fake success count. Failure or stale results replace the sweep with
+a broken animated trace. Failed probes retry after four seconds.
+
+Missing link/route says LOCAL DOWN; gateway success with failed external probes
+says WAN CHECK; ambiguous gateway/external silence says LINK CHECK. CONNECTED
+proves only the tested TCP path, not DNS or every feed. Results older than 35
+seconds are marked stale. Small chart bars retain measured latency history.
 Snapshots do not start probes. Configured LCD orientation remains unchanged.
 
 The LCD reads the shared cache every ten seconds. A background fallback checks
-for overdue threat, weather and flood sources every 30 seconds, requesting only
+for overdue threat, weather, flood, NCSC and BBC sources every 30 seconds, requesting only
 those past their normal refresh interval. Failed attempts retry at most every
 five minutes and retain last known data with honest stale labels. This keeps
 LCD refresh independent of the selected main launcher view. Concurrent cache

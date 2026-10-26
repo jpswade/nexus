@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from companion_network import classify, NetworkMonitor
+from companion_network import classify, NetworkMonitor, sweep_duration
 
 class NetworkTests(unittest.TestCase):
     def test_distinguishes_link_failure_and_upstream_probe_failure(self):
@@ -27,3 +27,17 @@ class NetworkTests(unittest.TestCase):
         self.assertEqual(state['label'],'CONNECTED')
         self.assertIsNotNone(state['latency'])
         self.assertIn('TCP',state['detail'])
+
+    def test_sweep_speed_tracks_latency_and_stays_bounded(self):
+        self.assertLess(sweep_duration(10),sweep_duration(500))
+        self.assertGreaterEqual(sweep_duration(0),1.5)
+        self.assertLessEqual(sweep_duration(10000),6)
+
+    def test_counter_advances_only_when_a_real_probe_finishes(self):
+        monitor=NetworkMonitor()
+        self.assertEqual(monitor.snapshot().get('sequence',0),0)
+        with patch('companion_network.gateway',return_value=(None,None)):
+            monitor.probe()
+            self.assertEqual(monitor.snapshot()['sequence'],1)
+            monitor.probe()
+            self.assertEqual(monitor.snapshot()['sequence'],2)
