@@ -69,3 +69,9 @@ class PersistentConsoleTests(unittest.TestCase):
     def test_unknown_weather_colour_is_not_invented(self):
         from companion import weather_label
         self.assertEqual(weather_label({'title':'Unknown warning'}, {'items':[{'title':'Unknown warning'}]}),'BULLETIN')
+
+    def test_full_assessment_labels_fit_the_status_box(self):
+        view=Companion()
+        for level in ('LOW','MODERATE','SUBSTANTIAL','SEVERE','CRITICAL','UNKNOWN'):
+            size=38 if len(level)>6 else 54
+            self.assertLessEqual(view.face(size).size(level)[0],262,level)
