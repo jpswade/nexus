@@ -91,17 +91,28 @@ class ScifiMotionTests(unittest.TestCase):
         view=Companion()
         data={'weather':{'fetched':10000,'items':[{'title':'Yellow wind warning','colour':'yellow'}]}}
         surface=view.draw(data,10000,3,'')
-        pixel=surface.get_at((310,190))
+        pixel=surface.get_at((310,110))
         self.assertGreater(pixel.r,200)
         self.assertGreater(pixel.g,180)
         self.assertLess(pixel.b,100)
 
-    def test_refresh_reveal_does_not_restart_other_slot(self):
+    def test_refresh_reveals_briefing_without_hiding_status_or_ping(self):
         view=Companion()
-        data={'weather':{'fetched':10000,'items':[]},'floods':{'fetched':10000,'items':[]}}
+        data={'weather':{'fetched':10000,'items':[]},'threat':{'fetched':10000,'level':'severe'}}
         view.draw(data,10000,3,'')
-        side=view.tiles['side']
         data['weather']['fetched']=10001
-        view.draw(data,10001,4,'')
-        self.assertEqual(view.tiles['side'],side)
+        surface=view.draw(data,10001,4,'')
         self.assertEqual(view.tiles['main'][1],4)
+        self.assertGreater(surface.get_at((20,115)).r,180)
+
+    def test_ping_values_share_bottom_bar_and_no_connection_box(self):
+        view=Companion();calls=[]
+        original=view.text
+        def capture(value,x,y,*args,**kwargs):
+            calls.append((value,x,y));original(value,x,y,*args,**kwargs)
+        view.text=capture
+        net=dict(colour='accent',checked=10000,latency=24,minimum=12,maximum=80)
+        view.draw({},10000,3,'',net)
+        for value in ('24 ms','12 ms','80 ms'):
+            self.assertTrue(any(v==value and y>=266 for v,x,y in calls))
+        self.assertFalse(any('CONNECTION' in v or 'CONNECTED' in v for v,x,y in calls))

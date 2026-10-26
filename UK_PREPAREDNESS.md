@@ -176,3 +176,9 @@ The companion connection box shows current TCP latency plus MIN/MAX successful
 latency since that companion service started (milliseconds, including fallback
 probe targets). Failed probes do not change the extrema. Restarting the service
 resets the session; no samples are displayed as `--`.
+
+The compact LCD uses two persistent large status panels (threat and weather),
+one full-width rotating briefing, and a bottom ping bar. Current, session MIN
+and session MAX TCP latency all sit on that animated bar. There is no separate
+connectivity box. Headline type is 32px and latency values are 24px; stale labels
+and warning validity remain visible while repeated source metadata is reduced.
