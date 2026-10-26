@@ -156,89 +156,71 @@ class Companion:
         self.surface.fill(PALETTE['background'])
         alerts=self.alerts.update(data,(),now)
         highest=max((a['rank'] for a in alerts),default=0)
-        missing=any(not data.get(n) or now-data[n]['fetched']>MAX_AGES[n] for n in ('threat','weather','floods'))
-        rail='#ff5555' if highest>=5 else '#ffbf66' if highest>=3 else '#e5d558' if highest else PALETTE['muted' if missing else 'accent']
+        rail='#ff5555' if highest>=5 else '#ffbf66' if highest>=3 else '#e5d558' if highest else PALETTE['accent']
         pygame.draw.rect(self.surface,rail,(0,0,6,320))
-        self.text('NEXUS / '+('DATA STALE' if missing else 'SIGNAL OS'),16,3,19,'error' if missing else 'accent',300)
-        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'),365,3,19,'text',110)
-        # Permanent threat box. Only secondary content is ever shuttered.
+        self.text('NEXUS',16,1,24,'accent',250)
+        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'),352,1,22,'text',120)
         threat=data.get('threat');level=threat['level'].upper() if threat else 'UNKNOWN'
         fill={'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level)
         ink='#081116' if fill else 'text'
         stale=not threat or now-threat['fetched']>MAX_AGES['threat']
-        self.box((14,31,282,91),'UK THREAT / GOV.UK'+(' *' if stale else ''),fill,ink)
-        self.text(level,24,53,38 if len(level)>6 else 48,ink,262)
-        self.text('STALE / LAST KNOWN' if stale else 'NATIONAL ASSESSMENT',24,101,13,ink,262)
-        net=network or dict(label='CHECKING',detail='Waiting for probe',colour='muted',checked=None,latency=None,history=[])
-        old=net.get('checked') is not None and now-net['checked']>35
-        tone='error' if old else net['colour']
-        self.box((304,31,168,91),'NET / SESSION')
-        self.text('PROBE STALE' if old else net['label'],314,56,20,tone,148)
-        self.text(net['detail'],314,84,17,tone,148)
-        low=net.get('minimum');high=net.get('maximum')
-        low_text='--' if low is None else str(round(low))
-        high_text='--' if high is None else str(round(high))
-        self.text('MIN '+low_text+' / MAX '+high_text+' ms',314,105,12,'muted',148)
+        self.box((14,31,282,91),'UK THREAT'+(' / STALE' if stale else ''),fill,ink)
+        self.text(level,24,59,38 if len(level)>6 else 54,ink,262)
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
-        label=weather_label(warning,weather) if warning else 'NONE LISTED' if weather else 'UNKNOWN'
+        label=weather_label(warning,weather) if warning else 'NONE' if weather else 'UNKNOWN'
         wf,wi=self.weather_style(label)
-        self.box((304,130,168,70),'MET OFFICE'+(' *' if not weather or now-weather['fetched']>MAX_AGES['weather'] else ''),wf,wi)
-        self.text(label if warning or not weather else 'NONE',314,156,18 if warning and len(label)>6 else 24,wi,104 if warning else 148)
-        if warning:
-            self.weather_icon(warning['title'],420,157,age,wi)
-        # Independently timed content slots; refreshes also trigger a short reveal.
-        index=int(age/13)%3
-        source=('weather','floods','ncsc')[index]
+        weather_stale=not weather or now-weather['fetched']>MAX_AGES['weather']
+        self.box((304,31,168,91),'WEATHER',wf,wi)
+        self.text(label,314,58,26 if len(label)>6 else 32,wi,148)
+        state='STALE' if weather_stale else 'UPCOMING' if warning and warning['detail'].startswith('UPCOMING') else 'MET OFFICE'
+        self.text(state,314,99,15,wi,148)
+        # One wide briefing panel replaces the cramped secondary tiles.
+        index=int(age/13)%4
+        source=('weather','floods','ncsc','news')[index]
         sample=data.get(source)
         stale=not sample or now-sample['fetched']>MAX_AGES[source]
         items=sample.get('items',[]) if sample else []
-        title=warning['title'] if index==0 and warning else items[int(age/39)%len(items)]['title'] if items else 'No current bulletins returned' if sample else 'Waiting for source'
+        title=warning['title'] if index==0 and warning else items[int(age/52)%len(items)]['title'] if items else 'No bulletins listed' if sample else 'Waiting for source'
+        if index==0 and warning:
+            # The fixed weather tile already carries colour and regional context.
+            title=title.split(' affecting ')[0]
         fill,ink=(wf,wi) if index==0 else (None,'text')
-        self.box((14,130,282,146),('WEATHER BULLETIN','LOCAL FLOOD WATCH','NCSC BRIEFING')[index]+(' *' if stale else ''),fill,ink)
-        self.lines(title,160,3,23,ink,x=24,width=262)
-        detail=('VALIDITY / CHECK SOURCE' if 'CHECK VALIDITY' in warning['detail'] else warning['detail']) if index==0 and warning else scope if index==1 else 'NCSC / SOURCE PUBLICATION' if index==2 else 'MET OFFICE / REGIONAL'
-        self.text(detail,24,243,14,ink,262)
-        stamp=dt.datetime.fromtimestamp(sample['fetched']).strftime('CHECKED %H:%M') if sample else 'NO SUCCESSFUL CHECK'
-        self.text(('STALE / ' if stale else '')+stamp,24,259,12,ink,262)
-        self.shutter('main',(index,(sample or {}).get('fetched')),age,(14,130,282,146),13)
-        right=int((age+7)/19)%3
-        source=('floods','news','weather')[right]
-        sample=data.get(source);items=(sample or {}).get('items',[])
-        side_stale=not sample or now-sample['fetched']>MAX_AGES[source]
-        self.box((304,208,168,68),('LOCAL FLOODS','BBC BRIEF','SOURCE CHECK')[right]+(' *' if side_stale else ''))
-        if right==0:
-            self.text(str(len(items))+' ALERT'+('' if len(items)==1 else 'S') if sample else 'UNKNOWN',314,234,24,'error' if items else 'text',148)
-        elif right==1:
-            self.lines(items[int(age/57)%len(items)]['title'] if items else 'No publication',232,2,15,'text',314,148)
-        else:
-            fresh=sample and now-sample['fetched']<=MAX_AGES[source]
-            self.text('FRESH' if fresh else 'STALE',314,234,24,'accent' if fresh else 'error',148)
-        self.shutter('side',(right,(sample or {}).get('fetched')),age,(304,208,168,68),19,7)
-        # Scanning corner accents give quiet motion without blinking the words.
+        self.box((14,130,458,128),('WEATHER','LOCAL FLOODS','NCSC','BBC NEWS')[index]+(' / STALE' if stale else ''),fill,ink)
+        self.lines(title,157,2,32,ink,x=24,width=384 if index==0 and warning else 438)
+        if index==0 and warning:
+            self.weather_icon(warning['title'],416,174,age,wi)
+        detail=warning['detail'] if index==0 and warning else 'Regional bulletins' if index==0 else scope if index==1 else 'Source publication'
+        self.text(detail,24,234,15,ink,438)
+        self.shutter('main',(index,(sample or {}).get('fetched')),age,(14,130,458,128),13)
         for x,y,w,h in ((14,31,282,91),(304,31,168,91)):
             phase=int(age*24)%(w-15)
             pygame.draw.line(self.surface,PALETTE['accent'],(x+phase,y),(x+phase+12,y),2)
-        # One sweep per real probe cadence; the number counts completed probes.
-        pygame.draw.rect(self.surface,PALETTE['panel'],(14,284,458,32))
+        # Current and session extrema share the animated ping bar.
+        net=network or dict(colour='muted',checked=None,latency=None)
         latency=net.get('latency');checked=net.get('checked')
+        old=checked is not None and now-checked>35
         good=checked is not None and not old and latency is not None
-        self.text('TCP #'+str(net.get('sequence',0)).zfill(5),24,287,15,tone,122)
-        self.text(str(round(latency))+' ms' if good else 'NO REPLY' if checked else 'CHECKING',386,287,16,tone,80)
-        pygame.draw.line(self.surface,PALETTE['border'],(151,301),(376,301),1)
+        tone='error' if old or checked is not None and not good else net['colour']
+        pygame.draw.rect(self.surface,PALETTE['panel'],(14,266,458,53))
+        current=str(round(latency))+' ms' if good else 'STALE' if old else 'NO REPLY' if checked else '--'
+        for x,label,value in ((24,'PING / TCP',current),(178,'MIN / SESSION',net.get('minimum')),(332,'MAX / SESSION',net.get('maximum'))):
+            self.text(label,x,267,13,'muted',140)
+            value=value if isinstance(value,str) else '--' if value is None else str(round(value))+' ms'
+            self.text(value,x,283,24,tone if x==24 else 'text',140)
+        pygame.draw.line(self.surface,PALETTE['border'],(24,315),(460,315),2)
         if good:
             phase=min(1,max(0,(now-checked)/sweep_duration(latency)))
-            head=151+int(phase*225)
+            head=24+int(phase*436)
             for i in range(12):
                 x=head-i*3
-                if x>=151:
-                    pygame.draw.line(self.surface,PALETTE['accent'],(x,296+i//4),(x,305-i//4),1)
+                if x>=24:
+                    pygame.draw.line(self.surface,PALETTE['accent'],(x,312),(x,317),1)
         else:
-            # No successful-looking sweep when offline or when measurements age out.
-            for i in range(12):
-                x=155+i*18
+            for i in range(24):
+                x=24+i*18
                 if int(age*3+i)%3:
-                    pygame.draw.line(self.surface,PALETTE[tone],(x,299),(x+7,303),2)
+                    pygame.draw.line(self.surface,PALETTE[tone],(x,314),(x+7,316),2)
         return self.surface
 
 
