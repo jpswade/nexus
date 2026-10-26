@@ -182,3 +182,9 @@ one full-width rotating briefing, and a bottom ping bar. Current, session MIN
 and session MAX TCP latency all sit on that animated bar. There is no separate
 connectivity box. Headline type is 32px and latency values are 24px; stale labels
 and warning validity remain visible while repeated source metadata is reduced.
+
+The LCD ping sweep is a continuous 1.1-second activity animation while the last
+probe is successful and fresh. It does not represent individual packets or
+probe completion. Numeric readings still come only from real probes; failures
+and stale probes stop the healthy sweep. Frame pacing targets the LCD driver's
+10 fps and includes render time.

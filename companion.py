@@ -221,12 +221,17 @@ class Companion:
         previous_clip=self.surface.get_clip()
         self.surface.set_clip(track)
         if good:
-            phase=min(1,max(0,(now-checked)/sweep_duration(latency)))
+            phase=(age/1.1)%1.0
             head=track.left+int(phase*track.width)
-            for i in range(16):
-                x=head-i*4
-                colour=PALETTE['accent'] if i<5 else PALETTE['muted']
+            # Wrap a fading trail seamlessly; probes update the numbers independently.
+            bright=pygame.Color(PALETTE['accent'])
+            base=pygame.Color(PALETTE['border'])
+            for i in range(24):
+                x=track.left+(head-track.left-i*4)%track.width
+                colour=bright.lerp(base,i/24)
                 pygame.draw.rect(self.surface,colour,(x,track.top,4,track.height))
+                if x+4>track.right:
+                    pygame.draw.rect(self.surface,colour,(track.left,track.top,x+4-track.right,track.height))
         else:
             for i in range(16):
                 x=track.left+i*18
@@ -272,6 +277,7 @@ def main():
     network = NetworkMonitor()
     if not args.snapshot:
         network.start()
+    frame_clock = pygame.time.Clock()
     start, refreshed = time.monotonic(), -100
     while True:
         age = time.monotonic()-start
@@ -287,7 +293,7 @@ def main():
             pygame.image.save(surface, args.snapshot)
             return
         target.write(surface)
-        time.sleep(.125)
+        frame_clock.tick(10)  # Match LCD driver cadence; include rendering time.
 
 
 if __name__ == '__main__':
