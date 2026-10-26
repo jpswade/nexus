@@ -164,17 +164,21 @@ class Companion:
         fill={'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level)
         ink='#081116' if fill else 'text'
         stale=not threat or now-threat['fetched']>MAX_AGES['threat']
-        self.box((14,31,282,91),'UK THREAT'+(' / STALE' if stale else ''),fill,ink)
-        self.text(level,24,59,38 if len(level)>6 else 54,ink,262)
+        self.box((14,31,184,91),'UK THREAT',fill,ink)
+        self.text(level,24,59,22 if len(level)>8 else 26 if len(level)>6 else 36,ink,164)
+        if stale:
+            self.text('STALE',24,103,12,ink,164)
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
         label=weather_label(warning,weather) if warning else 'NONE' if weather else 'UNKNOWN'
         wf,wi=self.weather_style(label)
         weather_stale=not weather or now-weather['fetched']>MAX_AGES['weather']
-        self.box((304,31,168,91),'WEATHER',wf,wi)
-        self.text(label,314,58,26 if len(label)>6 else 32,wi,148)
+        self.box((206,31,266,91),'WEATHER',wf,wi)
+        self.text(label,216,54,30 if len(label)>6 else 38,wi,184)
+        if warning:
+            self.weather_icon(warning['title'],414,65,age,wi)
         state='STALE' if weather_stale else 'UPCOMING' if warning and warning['detail'].startswith('UPCOMING') else 'MET OFFICE'
-        self.text(state,314,99,15,wi,148)
+        self.text(state,216,99,15,wi,246)
         # One wide briefing panel replaces the cramped secondary tiles.
         index=int(age/13)%4
         source=('weather','floods','ncsc','news')[index]
@@ -193,7 +197,7 @@ class Companion:
         detail=warning['detail'] if index==0 and warning else 'Regional bulletins' if index==0 else scope if index==1 else 'Source publication'
         self.text(detail,24,234,15,ink,438)
         self.shutter('main',(index,(sample or {}).get('fetched')),age,(14,130,458,128),13)
-        for x,y,w,h in ((14,31,282,91),(304,31,168,91)):
+        for x,y,w,h in ((14,31,184,91),(206,31,266,91)):
             phase=int(age*24)%(w-15)
             pygame.draw.line(self.surface,PALETTE['accent'],(x+phase,y),(x+phase+12,y),2)
         # Current and session extrema share the animated ping bar.
