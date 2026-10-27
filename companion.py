@@ -171,16 +171,13 @@ class Companion:
             self.text('RETRYING',180,254,20,colour,160)
             return self.surface
         alerts=self.alerts.update(data,(),now)
-        highest=max((a['rank'] for a in alerts),default=0)
-        rail='#ff5555' if highest>=5 else '#ffbf66' if highest>=3 else '#e5d558' if highest else PALETTE['accent']
-        pygame.draw.rect(self.surface,rail,(0,0,6,320))
         # The whole masthead is the assessment, with a single compact clock.
         threat=data.get('threat');level=threat['level'].upper() if threat else 'UNKNOWN'
         stale=not threat or now-threat['fetched']>MAX_AGES['threat']
         fill={'LOW':'#70b99c','MODERATE':'#a5cd65','SUBSTANTIAL':'#ead64c',
               'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level,'#203640')
         ink='text' if level=='UNKNOWN' else '#081116'
-        pygame.draw.rect(self.surface,fill,(6,0,474,66))
+        pygame.draw.rect(self.surface,fill,(0,0,480,66))
         self.text('NEXUS / UK TERRORISM'+(' / STALE' if stale else ''),16,3,14,ink,300)
         self.text(level,14,20,34,ink,320)
         self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'),371,4,27,ink,103)
@@ -228,9 +225,6 @@ class Companion:
             pygame.draw.rect(self.surface,PALETTE['border'],(x+9,250,207,2))
             pygame.draw.rect(self.surface,PALETTE['accent'],(x+9,250,int(207*(phase%16)/16),2))
             self.shutter(slot,(source,(sample or {}).get('fetched')),age,rect,16,offset)
-        # A quiet pulse keeps outstanding warnings visible on every rotation.
-        if warning:
-            pygame.draw.rect(self.surface,wf or PALETTE['accent'],(8,70,3,34),0 if int(age*2)%2 else 1)
         # Current and session extrema share the animated ping bar.
         net=network or dict(colour='muted',checked=None,latency=None)
         latency=net.get('latency');checked=net.get('checked')

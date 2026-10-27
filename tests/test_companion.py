@@ -57,11 +57,11 @@ class RefreshFallbackTests(unittest.TestCase):
 
 
 class PersistentConsoleTests(unittest.TestCase):
-    def test_warning_colour_stays_visible_on_every_page(self):
+    def test_threat_header_colour_stays_visible_on_every_page(self):
         view=Companion()
         data={'threat':{'level':'severe','fetched':10000}}
         for age in (0,12,24):
-            pixel=view.draw(data,10000,age,'').get_at((2,150))
+            pixel=view.draw(data,10000,age,'').get_at((2,60))
             self.assertGreater(pixel.r,200)
             self.assertGreater(pixel.g,100)
             self.assertLess(pixel.b,150)
