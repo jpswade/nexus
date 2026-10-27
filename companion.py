@@ -203,24 +203,30 @@ class Companion:
                                       ('news',247,('ncsc','news'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
+            if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
+                source='news'
             sample=data.get(source)
             stale=not sample or now-sample['fetched']>MAX_AGES[source]
             items=display_items(source,sample,now)
             if source=='weather':
                 items=wa
             item=items[int(phase/32)%len(items)] if items else None
-            title=item['title'] if item else ('Source unavailable' if not sample else
+            title=item.get('compact_title',item['title']) if item else ('Source unavailable' if not sample else
                 'Weather data stale' if source=='weather' and stale else
                 {'weather':'No active weather warnings','floods':'No local flood alerts',
-                 'ncsc':'No NCSC articles today','news':'No headlines listed'}[source])
+                 'ncsc':'No NCSC articles today','news':'No new exploited CVEs in 30 days'}[source])
             if source=='weather' and item:
                 title=title.split(' affecting ')[0]
-            heading={'weather':'WEATHER','floods':'LOCAL FLOODS','ncsc':'NCSC TODAY','news':'UK NEWS'}[source]
+            heading={'weather':'WEATHER','floods':'LOCAL FLOODS','ncsc':'NCSC TODAY','news':'CYBER / GLOBAL'}[source]
             rect=(x,110,225,148)
             self.box(rect,heading+(' / STALE' if stale else ''),ink='accent')
-            self.lines(title,139,3,22,x=x+9,width=207)
-            detail=article_date(item) if source=='ncsc' and item else scope if source=='floods' else 'MET OFFICE' if source=='weather' else 'NCSC' if source=='ncsc' else 'BBC NEWS'
-            self.text(detail,x+9,226,12,'muted',207)
+            self.lines(title,139,2 if source=='news' else 3,22,x=x+9,width=207)
+            detail=article_date(item) if source=='ncsc' and item else scope if source=='floods' else 'MET OFFICE' if source=='weather' else 'NCSC' if source=='ncsc' else 'CISA KEV / 30 DAYS'
+            if source=='news' and item:
+                self.text('KNOWN EXPLOITED',x+9,194,12,'muted',207)
+                self.text(item['id'],x+9,213,14,'accent',207)
+                detail='ADDED '+item['added']+' / CISA'
+            self.text(detail,x+9,233,12,'muted',207)
             # Thin moving channel marker, timed to the actual page rotation.
             pygame.draw.rect(self.surface,PALETTE['border'],(x+9,250,207,2))
             pygame.draw.rect(self.surface,PALETTE['accent'],(x+9,250,int(207*(phase%16)/16),2))

@@ -191,3 +191,5 @@ Disable with `systemctl --user disable --now nexus-update.timer`.
 Run immediately with `systemctl --user start nexus-update.service`.
 The updater itself is installed explicitly by the enable script; rerun that
 script when updater changes are announced.
+
+The preparedness cyber panel uses CISA’s Known Exploited Vulnerabilities catalogue instead of general news. It shows global advisories added within the last 30 days, newest first, with catalogue-added dates (not incident dates). It also fills quiet NCSC days. These entries do not imply the device is affected and do not trigger emergency alerts.

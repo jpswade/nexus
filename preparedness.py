@@ -20,14 +20,14 @@ URLS = {
     'weather': 'https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/UK',
     'floods': 'https://environment.data.gov.uk/flood-monitoring/id/floods?min-severity=3',
     'ncsc': 'https://www.ncsc.gov.uk/api/1/services/v1/news-rss-feed.xml',
-    'news': 'https://feeds.bbci.co.uk/news/uk/rss.xml',
+    'news': 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json',
 }
 LINKS = {
     'threat': 'https://www.gov.uk/terrorism-national-emergency',
     'weather': 'https://www.metoffice.gov.uk/weather/warnings-and-advice/uk-warnings',
     'floods': 'https://check-for-flooding.service.gov.uk/alerts-and-warnings',
     'ncsc': 'https://www.ncsc.gov.uk/section/keep-up-to-date/news',
-    'news': 'https://www.bbc.co.uk/news/uk',
+    'news': 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
     'prepare': 'https://prepare.campaign.gov.uk/',
 }
 INTERVALS = {'threat': 3600, 'weather': 300, 'floods': 900, 'ncsc': 900, 'news': 900}
@@ -38,7 +38,6 @@ REGIONS = {'UK': 'UK', 'nw': 'North West England', 'ne': 'North East England',
            'wl': 'Wales', 'ni': 'Northern Ireland', 'os': 'Orkney & Shetland',
            'he': 'Highlands & Eilean Siar', 'gr': 'Grampian', 'st': 'Strathclyde',
            'ta': 'Central, Tayside & Fife', 'dg': 'SW Scotland & Borders'}
-TOPICS = re.compile(r'\b(cyber\w*|attack\w*|flood\w*|storm\w*|outage\w*|emergency|terror\w*|evacuat\w*|power cut\w*|ransomware|wildfire\w*)\b', re.I)
 LEVELS = ('low', 'moderate', 'substantial', 'severe', 'critical')
 
 
@@ -72,6 +71,26 @@ def rss_date(value):
 
 
 def parse_feed(name, raw):
+    if name == 'news':
+        # Retain the internal slot name; this is now an official cyber feed.
+        rows = raw.get('vulnerabilities')
+        if not isinstance(rows, list):
+            raise ValueError('Missing KEV catalogue')
+        items, seen = [], set()
+        for row in rows:
+            cve = row['cveID']
+            if not re.fullmatch(r'CVE-\d{4}-\d{4,}', cve):
+                raise ValueError('Invalid CVE identifier')
+            if cve in seen:
+                continue
+            seen.add(cve)
+            added = dt.datetime.strptime(row['dateAdded'], '%Y-%m-%d').replace(tzinfo=dt.timezone.utc).timestamp()
+            items.append({'id':cve, 'title':cve+' / '+row['vulnerabilityName'],
+                          'compact_title':row['vendorProject']+' / '+row['product'],
+                          'published':added, 'added':row['dateAdded'],
+                          'url':LINKS['news']+'?search='+cve})
+        return {'items':sorted(items,key=lambda r:(r['published'],r['id']),reverse=True)[:100],
+                'catalogue':True}
     if name == 'threat':
         parts = raw['details']['parts']
         body = next(p['body'] for p in parts if p['slug'] == 'terrorism-threat-levels')
@@ -111,8 +130,6 @@ def parse_feed(name, raw):
             if 'no warnings' in title.lower():
                 continue
             raise ValueError('Unrecognised warning bulletin')
-        if name == 'news' and not TOPICS.search(title):
-            continue
         url = safe_link(item.findtext('link'), LINKS[name])
         if (title, url) in seen:
             continue
@@ -183,7 +200,7 @@ class PreparednessFeeds:
                 payload = response.read(4_194_305)
             if len(payload) > 4_194_304:
                 raise ValueError('Oversized feed')
-            raw = json.loads(payload) if name in ('threat', 'floods') else payload
+            raw = json.loads(payload) if name in ('threat', 'floods', 'news') else payload
             result = {**parse_feed(name, raw), 'fetched': time.time(), 'source': self.urls[name]}
             with self.lock:
                 self.data[name] = result
@@ -225,6 +242,9 @@ def source_status(name, data, errors, now):
 def display_items(name, sample, now):
     """Filter NCSC at render time so cached headlines age out at UK midnight."""
     items = (sample or {}).get('items', [])
+    if name == 'news':
+        return [item for item in items if isinstance(item.get('published'), (int, float))
+                and 0 <= now-item['published'] <= 30*86400]
     if name != 'ncsc':
         return items
     # Earlier caches may have substituted the feed build date for article dates.

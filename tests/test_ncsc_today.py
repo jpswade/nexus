@@ -9,7 +9,7 @@ class NCSCTodayTests(unittest.TestCase):
         sample={'items':rows,'item_dates':True}
         self.assertEqual(display_items('ncsc',sample,now),rows[:1])
         self.assertEqual(display_items('ncsc',sample,now+86400),[])
-        self.assertEqual(display_items('news',sample,now),rows)
+        self.assertEqual(display_items('weather',sample,now),rows)
         self.assertEqual(display_items('ncsc',{'items':rows},now),[])
 
     def test_feed_build_date_is_not_article_publication_date(self):
