@@ -201,3 +201,7 @@ With no qualifying warnings, or on a normal service stop, it restores the origin
 LED trigger. While flashing, the red LED is a Nexus indicator rather than the
 normal power-status indicator. Disable with
 `systemctl --user disable --now nexus-warning-led.service`.
+
+The ping bar now uses a compact `current/max` reading in milliseconds, with a
+larger current value and smaller session maximum. Minimum and labels are hidden;
+the sweep fills the remaining width. A missing or stale current reading is `--`.
