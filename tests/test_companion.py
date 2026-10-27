@@ -156,7 +156,7 @@ class StatusPanelsTests(unittest.TestCase):
         view=Companion()
         view.draw({},10000,3,'')
         self.assertEqual(view.tiles['local'][0][0],'weather')
-        self.assertEqual(view.tiles['news'][0][0],'ncsc')
+        self.assertEqual(view.tiles['news'][0][0],'news')
         view.draw({},10000,12,'')
         self.assertEqual(view.tiles['local'][0][0],'weather')
         self.assertEqual(view.tiles['news'][0][0],'news')

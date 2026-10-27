@@ -73,10 +73,6 @@ class PreparednessTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_feed('weather', rss.replace('Amber warning', 'Changed structure'))
         self.assertEqual(parse_feed('weather', '<rss><channel/></rss>')['items'], [])
-        news = '<rss><channel><item><title>Cyber attack reported by company</title><link>javascript:bad()</link></item><item><title>Football result</title></item></channel></rss>'
-        items = parse_feed('news', news)['items']
-        self.assertEqual(len(items), 1)
-        self.assertEqual(items[0]['url'], 'https://www.bbc.co.uk/news/uk')
 
     def test_local_scope_and_cache_identity_change_with_coordinates(self):
         config = {'latitude': 52, 'longitude': -2, 'preparedness': {
@@ -183,3 +179,19 @@ class PreparednessTests(unittest.TestCase):
                                              str(Path(directory)/'frame.png'), '--workspace', str(workspace), '--age', str(age)],
                                             cwd=ROOT, env=env, capture_output=True, timeout=15)
                     self.assertEqual(result.returncode, 0, result.stderr.decode())
+
+
+class CyberFeedTests(unittest.TestCase):
+    def test_kev_deduplicates_sorts_and_uses_catalogue_dates(self):
+        row={'cveID':'CVE-2026-12345','dateAdded':'2026-10-26','vendorProject':'Example',
+             'product':'Server','vulnerabilityName':'Server authentication bypass'}
+        result=parse_feed('news',{'vulnerabilities':[row,row,{**row,'cveID':'CVE-2026-12346','dateAdded':'2026-10-27'}]})
+        self.assertEqual(len(result['items']),2)
+        self.assertEqual(result['items'][0]['id'],'CVE-2026-12346')
+        self.assertEqual(result['items'][1]['added'],'2026-10-26')
+        from preparedness import display_items
+        now=result['items'][0]['published']
+        self.assertEqual(len(display_items('news',result,now)),2)
+        self.assertEqual(display_items('news',result,now+31*86400),[])
+        self.assertEqual(display_items('news',result,now-2*86400),[])
+        with self.assertRaises(ValueError):parse_feed('news',{})

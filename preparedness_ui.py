@@ -100,7 +100,7 @@ class PreparednessDesktop:
         u.panel(840,105,412,551,'PUBLIC SOURCE BRIEFING','')
         rows = []
         for name, label in [('weather', 'MET OFFICE'), ('floods', 'ENV. AGENCY'),
-                            ('ncsc', 'NCSC / PUBLICATION'), ('news', 'BBC / MEDIA REPORT')]:
+                            ('ncsc', 'NCSC / PUBLICATION'), ('news', 'CISA / EXPLOITED CVEs / GLOBAL')]:
             sample = data.get(name, {})
             items = display_items(name, sample, now)[:6]
             state = source_status(name, data, errors, now)
@@ -113,7 +113,7 @@ class PreparednessDesktop:
                 published = item.get('published')
                 if published:
                     stamp = article_date(item) if name == 'ncsc' else dt.datetime.fromtimestamp(published, dt.timezone.utc).strftime('%d %b %H:%M UTC')
-                    rows.append((stamp, u.DIM, None))
+                    rows.append((('ADDED TO KEV '+item['added']) if name=='news' else stamp, u.DIM, None))
                 for row in textwrap.wrap(item['title'], 38):
                     rows.append((row, u.TEXT, item.get('url')))
                 rows.append(('', u.DIM, None))
@@ -169,7 +169,9 @@ class PreparednessDesktop:
         u.text(source_status('floods',data,errors,now),340,382,12,u.DIM)
         self.links.append(((324,317,500,85),flood['url'] if flood else LINKS['floods']))
         name='ncsc' if int(age/20)%2==0 else 'news'
-        label='NCSC / OFFICIAL PUBLICATION' if name=='ncsc' else 'BBC / MEDIA REPORT'
+        if name=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
+            name='news'
+        label='NCSC / OFFICIAL PUBLICATION' if name=='ncsc' else 'CISA / EXPLOITED CVEs / GLOBAL'
         items=display_items(name,data.get(name),now)
         item=items[int(age/40)%len(items)] if items else None
         u.panel(324,414,500,138,label,'')
@@ -178,6 +180,8 @@ class PreparednessDesktop:
             u.blit(self.visuals.frame('orb',age),702,457)
         u.text('VISUAL FX',718,539,10,u.DIM)
         published=dt.datetime.fromtimestamp(item['published'],dt.timezone.utc).strftime('%d %b %Y %H:%M UTC') if item and item.get('published') else 'DATE NOT PROVIDED'
+        if name=='news' and item:
+            published='ADDED TO KEV '+item['added']
         stale=not data.get(name) or name in errors or now-data[name]['fetched']>MAX_AGES[name]
         u.text(published+(' / STALE' if stale else ''),340,530,13,u.DIM)
         self.active_url=item['url'] if item else LINKS[name]
