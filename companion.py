@@ -209,14 +209,16 @@ class Companion:
         good=checked is not None and not old and latency is not None
         tone='error' if old or checked is not None and not good else net['colour']
         pygame.draw.rect(self.surface,PALETTE['panel'],(14,266,458,54))
-        current=str(round(latency))+' ms' if good else 'STALE' if old else 'NO REPLY' if checked else '--'
-        low=net.get('minimum');high=net.get('maximum')
-        low_text='--' if low is None else str(round(low))
-        high_text='--' if high is None else str(round(high))
-        self.text('PING '+current,294,269,22,tone,172)
-        self.text('MIN '+low_text+' / MAX '+high_text,294,300,13,'text',172)
-        # A substantial sweep track, with all readings grouped to its right.
-        track=pygame.Rect(14,266,272,54)
+        current=str(round(latency)) if good else '--'
+        maximum=net.get('maximum')
+        suffix='/'+('--' if maximum is None else str(round(maximum)))
+        # Fit the reading to its actual width, leaving the rest for the sweep.
+        current_width=self.face(40).size(current)[0]
+        suffix_width=self.face(24).size(suffix)[0]
+        reading_x=466-current_width-suffix_width-2
+        self.text(current,reading_x,268,40,tone,current_width)
+        self.text(suffix,reading_x+current_width+2,284,24,'muted',suffix_width)
+        track=pygame.Rect(14,266,reading_x-22,54)
         pygame.draw.rect(self.surface,PALETTE['border'],track)
         previous_clip=self.surface.get_clip()
         self.surface.set_clip(track)
@@ -233,7 +235,7 @@ class Companion:
                 if x+4>track.right:
                     pygame.draw.rect(self.surface,colour,(track.left,track.top,x+4-track.right,track.height))
         else:
-            for i in range(16):
+            for i in range((track.width+17)//18):
                 x=track.left+i*18
                 if int(age*3+i)%3:
                     pygame.draw.line(self.surface,PALETTE[tone],(x,track.top),(x+10,track.bottom-1),4)
