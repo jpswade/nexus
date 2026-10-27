@@ -154,6 +154,18 @@ class Companion:
 
     def draw(self, data, now, age, scope, network=None):
         self.surface.fill(PALETTE['background'])
+        net=network or {}
+        checked=net.get('checked')
+        if checked is not None and now-checked<=35 and net.get('latency') is None:
+            bright=int(age*2)%2 == 0
+            colour='#ff6464' if bright else '#8b3038'
+            pygame.draw.rect(self.surface,colour,(4,4,472,312),8)
+            face=self.face(76)
+            word=face.render('OFFLINE',True,colour)
+            self.surface.blit(word,word.get_rect(center=(240,145)))
+            self.text('CONNECTION PROBES FAILED',66,210,22,'muted',350)
+            self.text('RETRYING',180,254,20,colour,160)
+            return self.surface
         alerts=self.alerts.update(data,(),now)
         highest=max((a['rank'] for a in alerts),default=0)
         rail='#ff5555' if highest>=5 else '#ffbf66' if highest>=3 else '#e5d558' if highest else PALETTE['accent']
@@ -223,22 +235,27 @@ class Companion:
         previous_clip=self.surface.get_clip()
         self.surface.set_clip(track)
         if good:
-            phase=(age/1.1)%1.0
-            head=track.left+int(phase*track.width)
-            # Wrap a fading trail seamlessly; probes update the numbers independently.
-            bright=pygame.Color(PALETTE['accent'])
-            base=pygame.Color(PALETTE['border'])
-            for i in range(24):
-                x=track.left+(head-track.left-i*4)%track.width
-                colour=bright.lerp(base,i/24)
-                pygame.draw.rect(self.surface,colour,(x,track.top,4,track.height))
-                if x+4>track.right:
-                    pygame.draw.rect(self.surface,colour,(track.left,track.top,x+4-track.right,track.height))
+            # A measured latency trace, not a simulated progress indicator.
+            history=net.get('history') or [latency]
+            history=history[-22:]
+            scale=max(50,max((v for v in history if v is not None),default=50))
+            points=[]
+            step=track.width/22
+            for i,value in enumerate(history):
+                x=int(track.right-(len(history)-i-.5)*step)
+                if value is None:
+                    pygame.draw.line(self.surface,PALETTE['error'],(x,track.bottom-10),(x,track.bottom-3),3)
+                    points=[]
+                    continue
+                y=int(track.bottom-4-(track.height-9)*value/scale)
+                pygame.draw.line(self.surface,PALETTE['muted'],(x,track.bottom-3),(x,y),2)
+                if points:
+                    pygame.draw.line(self.surface,PALETTE['accent'],points[-1],(x,y),2)
+                points.append((x,y))
+            if points:
+                pygame.draw.circle(self.surface,PALETTE['accent'],points[-1],3+int((math.sin(age*5)+1)))
         else:
-            for i in range((track.width+17)//18):
-                x=track.left+i*18
-                if int(age*3+i)%3:
-                    pygame.draw.line(self.surface,PALETTE[tone],(x,track.top),(x+10,track.bottom-1),4)
+            self.text('CHECKING',track.left+12,track.top+15,20,'muted',track.width-24)
         self.surface.set_clip(previous_clip)
         return self.surface
 
