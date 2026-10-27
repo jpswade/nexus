@@ -193,3 +193,5 @@ The updater itself is installed explicitly by the enable script; rerun that
 script when updater changes are announced.
 
 The preparedness cyber panel uses CISA’s Known Exploited Vulnerabilities catalogue instead of general news. It shows global advisories added within the last 30 days, newest first, with catalogue-added dates (not incident dates). It also fills quiet NCSC days. These entries do not imply the device is affected and do not trigger emergency alerts.
+
+CVE cards show CVSS base scores from the NVD API, preferring v4.0 then v3.1/v3.0 and the primary assessor within that version. The stream names the assessor. Scores refresh every six hours; failed lookups retain labelled cached scores, and absent scores are explicit.

@@ -141,6 +141,68 @@ def parse_feed(name, raw):
     return {'items': items[:100], 'published': channel_date, 'item_dates': True}
 
 
+def cvss_scores(raw):
+    """Prefer CVSS 4, then 3.1/3.0; prefer the primary assessor per version."""
+    result = {}
+    for entry in raw['vulnerabilities']:
+        cve = entry['cve']
+        if cve.get('vulnStatus') == 'Rejected':
+            continue
+        for key in ('cvssMetricV40', 'cvssMetricV31', 'cvssMetricV30'):
+            metrics = sorted(cve.get('metrics', {}).get(key, []),
+                             key=lambda m:m.get('type') != 'Primary')
+            for metric in metrics:
+                data = metric.get('cvssData', {})
+                score = data.get('baseScore')
+                if isinstance(score, (int, float)) and not isinstance(score, bool) and 0 <= score <= 10:
+                    result[cve['id']] = dict(score=score, cvss_version=data['version'],
+                        score_source=metric.get('source','NVD'),
+                        severity='CRITICAL' if score>=9 else 'HIGH' if score>=7 else 'MEDIUM' if score>=4 else 'LOW' if score>0 else 'NONE')
+                    break
+            if cve['id'] in result:
+                break
+    return result
+
+
+def score_label(item):
+    if item.get('score') is None:
+        return 'CVSS NOT AVAILABLE'
+    return f"{item['score']:.1f} {item['severity']} / v{item['cvss_version']}"
+
+
+def enrich_scores(result, previous, now):
+    old = {item['id']:item for item in (previous or {}).get('items', []) if 'id' in item}
+    checked = (previous or {}).get('scores_checked', 0)
+    scores = None
+    if now-checked >= 6*3600:
+        end = dt.datetime.fromtimestamp(now, dt.timezone.utc)
+        query = urllib.parse.urlencode({
+            'kevStartDate':(end-dt.timedelta(days=31)).strftime('%Y-%m-%dT00:00:00.000'),
+            'kevEndDate':end.strftime('%Y-%m-%dT%H:%M:%S.000'), 'resultsPerPage':200})
+        try:
+            req = urllib.request.Request('https://services.nvd.nist.gov/rest/json/cves/2.0?'+query,
+                                         headers={'User-Agent':'NexusPreparedness/1.0'})
+            with urllib.request.urlopen(req, timeout=25) as response:
+                payload = response.read(4_194_305)
+            if len(payload)>4_194_304:
+                raise ValueError('Oversized score response')
+            raw = json.loads(payload)
+            if raw['totalResults'] > len(raw['vulnerabilities']):
+                raise ValueError('Incomplete score response')
+            scores = cvss_scores(raw)
+            checked = now
+        except Exception:
+            pass  # A scoring outage must not hide the CISA advisories.
+    for item in result['items']:
+        prior = old.get(item['id'], {})
+        values = scores.get(item['id'], {}) if scores is not None else prior
+        for key in ('score','severity','cvss_version','score_source'):
+            if key in values:
+                item[key] = values[key]
+        item['score_cached'] = bool(item.get('score') is not None and now-checked>=6*3600)
+    result['scores_checked'] = checked
+
+
 def build_sources(config):
     options = config.get('preparedness', {})
     region = options.get('weather_region', 'UK')
@@ -202,6 +264,8 @@ class PreparednessFeeds:
                 raise ValueError('Oversized feed')
             raw = json.loads(payload) if name in ('threat', 'floods', 'news') else payload
             result = {**parse_feed(name, raw), 'fetched': time.time(), 'source': self.urls[name]}
+            if name == 'news':
+                enrich_scores(result, self.data.get(name), time.time())
             with self.lock:
                 self.data[name] = result
                 self.errors.discard(name)
