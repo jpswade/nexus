@@ -10,7 +10,7 @@ import threading
 import math
 
 import pygame
-from preparedness import display_items, article_date, PreparednessFeeds, MAX_AGES, INTERVALS
+from preparedness import score_label, display_items, article_date, PreparednessFeeds, MAX_AGES, INTERVALS
 from terminal_theme import PALETTE
 from alert_state import AlertState
 from companion_network import NetworkMonitor, sweep_duration
@@ -223,9 +223,9 @@ class Companion:
             self.lines(title,139,2 if source=='news' else 3,22,x=x+9,width=207)
             detail=article_date(item) if source=='ncsc' and item else scope if source=='floods' else 'MET OFFICE' if source=='weather' else 'NCSC' if source=='ncsc' else 'CISA KEV / 30 DAYS'
             if source=='news' and item:
-                self.text('KNOWN EXPLOITED',x+9,194,12,'muted',207)
+                self.text(score_label(item),x+9,191,16,'error' if item.get('score',0)>=7 else 'accent',207)
                 self.text(item['id'],x+9,213,14,'accent',207)
-                detail='ADDED '+item['added']+' / CISA'
+                detail='ADDED '+item['added']+(' / CACHED SCORE' if item.get('score_cached') else ' / CISA')
             self.text(detail,x+9,233,12,'muted',207)
             # Thin moving channel marker, timed to the actual page rotation.
             pygame.draw.rect(self.surface,PALETTE['border'],(x+9,250,207,2))

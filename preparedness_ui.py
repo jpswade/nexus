@@ -7,7 +7,7 @@ import math
 from cyber_graphics import draw_orb
 from status_summary import summary
 from alert_state import AlertState
-from preparedness import display_items, article_date, LINKS, MAX_AGES, LEVELS, source_status
+from preparedness import score_label, display_items, article_date, LINKS, MAX_AGES, LEVELS, source_status
 
 NAMES = ('UK situation console', 'Incident & cyber watch', 'UK situation map', 'Minutes to midnight')
 PREPARE_TIPS = (
@@ -110,6 +110,9 @@ class PreparednessDesktop:
                 rows.append(('No NCSC articles published today' if name == 'ncsc' and sample else 'No items returned' if sample else 'Waiting for source...', u.DIM, None))
             for item in items:
                 rows.append((label, u.TEAL, item.get('url')))
+                if name == 'news':
+                    rows.append((score_label(item)+(' / CACHED' if item.get('score_cached') else ''),u.AMBER,None))
+                    rows.append(('ASSESSOR / '+item.get('score_source','NVD / pending'),u.DIM,None))
                 published = item.get('published')
                 if published:
                     stamp = article_date(item) if name == 'ncsc' else dt.datetime.fromtimestamp(published, dt.timezone.utc).strftime('%d %b %H:%M UTC')
@@ -176,12 +179,15 @@ class PreparednessDesktop:
         item=items[int(age/40)%len(items)] if items else None
         u.panel(324,414,500,138,label,'')
         self.paragraphs(item['title'] if item else ('No NCSC articles published today' if name=='ncsc' and name in data else 'No matching publications' if name in data else 'Source unavailable'),340,460,33,19,3)
-        if self.visuals:
+        if name=='news' and item:
+            u.text(str(item.get('score','--')),705,457,34,u.AMBER)
+            u.text(item.get('severity','UNSCORED'),702,500,13,u.AMBER)
+            u.text('CVSS '+item.get('cvss_version','--'),702,518,12,u.DIM)
+        elif self.visuals:
             u.blit(self.visuals.frame('orb',age),702,457)
-        u.text('VISUAL FX',718,539,10,u.DIM)
         published=dt.datetime.fromtimestamp(item['published'],dt.timezone.utc).strftime('%d %b %Y %H:%M UTC') if item and item.get('published') else 'DATE NOT PROVIDED'
         if name=='news' and item:
-            published='ADDED TO KEV '+item['added']
+            published='ADDED TO KEV '+item['added']+(' / SCORE CACHED' if item.get('score_cached') else '')
         stale=not data.get(name) or name in errors or now-data[name]['fetched']>MAX_AGES[name]
         u.text(published+(' / STALE' if stale else ''),340,530,13,u.DIM)
         self.active_url=item['url'] if item else LINKS[name]
