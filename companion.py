@@ -115,28 +115,32 @@ class Companion:
         return fill, '#081116' if fill else 'text'
 
     def weather_icon(self, title, x, y, age, ink):
+        target_x,target_y=x,y
+        glyph=pygame.Surface((56,56),pygame.SRCALPHA)
+        x,y=5,10
         colour=PALETTE.get(ink,ink)
         title=title.lower()
         if 'wind' in title:
             for i in range(3):
                 dx=int(math.sin(age*3+i)*4)
-                pygame.draw.line(self.surface,colour,(x+dx,y+i*9),(x+40+dx,y+i*9),2)
-                pygame.draw.arc(self.surface,colour,(x+28+dx,y-9+i*9,16,12),-1.6,1.6,2)
+                pygame.draw.line(glyph,colour,(x+dx,y+i*9),(x+40+dx,y+i*9),2)
+                pygame.draw.arc(glyph,colour,(x+28+dx,y-9+i*9,16,12),-1.6,1.6,2)
         elif 'snow' in title or 'ice' in title:
             for angle in range(0,180,60):
                 a=math.radians(angle)+age*.2
                 dx,dy=int(math.cos(a)*19),int(math.sin(a)*19)
-                pygame.draw.line(self.surface,colour,(x+22-dx,y+12-dy),(x+22+dx,y+12+dy),2)
+                pygame.draw.line(glyph,colour,(x+22-dx,y+12-dy),(x+22+dx,y+12+dy),2)
         elif 'rain' in title or 'thunder' in title:
-            pygame.draw.ellipse(self.surface,colour,(x,y-4,45,18),2)
+            pygame.draw.ellipse(glyph,colour,(x,y-4,45,18),2)
             for i in range(4):
                 dy=int(age*18+i*5)%17
-                pygame.draw.line(self.surface,colour,(x+7+i*9,y+16+dy),(x+3+i*9,y+23+dy),2)
+                pygame.draw.line(glyph,colour,(x+7+i*9,y+16+dy),(x+3+i*9,y+23+dy),2)
         else:
             # A bulletin symbol, not an invented observation of current weather.
-            pygame.draw.polygon(self.surface,colour,[(x+22,y-5),(x+44,y+29),(x,y+29)],2)
-            pygame.draw.line(self.surface,colour,(x+22,y+4),(x+22,y+17),3)
-            pygame.draw.circle(self.surface,colour,(x+22,y+23),2)
+            pygame.draw.polygon(glyph,colour,[(x+22,y-5),(x+44,y+29),(x,y+29)],2)
+            pygame.draw.line(glyph,colour,(x+22,y+4),(x+22,y+17),3)
+            pygame.draw.circle(glyph,colour,(x+22,y+23),2)
+        self.surface.blit(pygame.transform.smoothscale(glyph,(40,32)),(target_x,target_y-5))
 
     def shutter(self, slot, token, age, rect, period, offset=0):
         previous=self.tiles.get(slot)
@@ -170,50 +174,63 @@ class Companion:
         highest=max((a['rank'] for a in alerts),default=0)
         rail='#ff5555' if highest>=5 else '#ffbf66' if highest>=3 else '#e5d558' if highest else PALETTE['accent']
         pygame.draw.rect(self.surface,rail,(0,0,6,320))
-        self.text('NEXUS',16,1,24,'accent',250)
-        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'),352,1,22,'text',120)
+        # The whole masthead is the assessment, with a single compact clock.
         threat=data.get('threat');level=threat['level'].upper() if threat else 'UNKNOWN'
-        fill={'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level)
-        ink='#081116' if fill else 'text'
         stale=not threat or now-threat['fetched']>MAX_AGES['threat']
-        self.box((14,31,184,91),'UK THREAT',fill,ink)
-        self.text(level,24,59,22 if len(level)>8 else 26 if len(level)>6 else 36,ink,164)
-        if stale:
-            self.text('STALE',24,103,12,ink,164)
+        fill={'LOW':'#70b99c','MODERATE':'#a5cd65','SUBSTANTIAL':'#ead64c',
+              'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level,'#203640')
+        ink='text' if level=='UNKNOWN' else '#081116'
+        pygame.draw.rect(self.surface,fill,(6,0,474,66))
+        self.text('NEXUS / UK TERRORISM'+(' / STALE' if stale else ''),16,3,14,ink,300)
+        self.text(level,14,20,34,ink,320)
+        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'),371,4,27,ink,103)
+        for i in range(5):
+            active=i<({'LOW':1,'MODERATE':2,'SUBSTANTIAL':3,'SEVERE':4,'CRITICAL':5}.get(level,0))
+            pygame.draw.rect(self.surface,ink if active else '#55605b',(374+i*19,43,14,10),0 if active else 1)
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
-        label=weather_label(warning,weather) if warning else 'NONE' if weather else 'UNKNOWN'
-        wf,wi=self.weather_style(label)
         weather_stale=not weather or now-weather['fetched']>MAX_AGES['weather']
-        self.box((206,31,266,91),'WEATHER',wf,wi)
-        self.text(label,216,54,30 if len(label)>6 else 38,wi,184)
+        label=weather_label(warning,weather) if warning else None
+        wf,wi=self.weather_style(label)
+        pygame.draw.rect(self.surface,wf or PALETTE['panel'],(14,70,458,34))
+        status=(label+' / '+('UPCOMING' if warning['detail'].startswith('UPCOMING') else 'WARNING')) if warning else 'NO ACTIVE WARNINGS'
+        if weather_stale:
+            status=(label+' / STALE') if warning else 'WARNINGS / STALE' if weather else 'WARNINGS / UNAVAILABLE'
+        self.text(status,22,76,19,wi,373)
         if warning:
-            self.weather_icon(warning['title'],414,65,age,wi)
-        state='STALE' if weather_stale else 'UPCOMING' if warning and warning['detail'].startswith('UPCOMING') else 'MET OFFICE'
-        self.text(state,216,99,15,wi,246)
-        # One wide briefing panel replaces the cramped secondary tiles.
-        index=int(age/13)%4
-        source=('weather','floods','ncsc','news')[index]
-        sample=data.get(source)
-        stale=not sample or now-sample['fetched']>MAX_AGES[source]
-        items=display_items(source,sample,now)
-        title=warning['title'] if index==0 and warning else items[int(age/52)%len(items)]['title'] if items else 'No NCSC articles today' if source=='ncsc' and sample else 'No bulletins listed' if sample else 'Waiting for source'
-        if index==0 and warning:
-            # The fixed weather tile already carries colour and regional context.
-            title=title.split(' affecting ')[0]
-        fill,ink=(wf,wi) if index==0 else (None,'text')
-        self.box((14,130,458,128),('WEATHER','LOCAL FLOODS','NCSC','BBC NEWS')[index]+(' / STALE' if stale else ''),fill,ink)
-        self.lines(title,157,2,32,ink,x=24,width=384 if index==0 and warning else 438)
-        if index==0 and warning:
-            self.weather_icon(warning['title'],416,174,age,wi)
-        detail=warning['detail'] if index==0 and warning else 'Regional bulletins' if index==0 else scope if index==1 else 'Source publication'
-        if source=='ncsc':
-            detail=article_date(items[int(age/52)%len(items)]) if items else 'PUBLISHED TODAY / UK TIME'
-        self.text(detail,24,234,15,ink,438)
-        self.shutter('main',(index,(sample or {}).get('fetched')),age,(14,130,458,128),13)
-        for x,y,w,h in ((14,31,184,91),(206,31,266,91)):
-            phase=int(age*24)%(w-15)
-            pygame.draw.line(self.surface,PALETTE['accent'],(x+phase,y),(x+phase+12,y),2)
+            self.weather_icon(warning['title'],418,77,age,wi)
+        else:
+            self.text('WX',427,77,18,'muted',40)
+        # Independent channels: local conditions on the left, news on the right.
+        for slot,x,sources,offset in (('local',14,('weather','floods'),0),
+                                      ('news',247,('ncsc','news'),6)):
+            phase=age+offset
+            source=sources[int(phase/16)%len(sources)]
+            sample=data.get(source)
+            stale=not sample or now-sample['fetched']>MAX_AGES[source]
+            items=display_items(source,sample,now)
+            if source=='weather':
+                items=wa
+            item=items[int(phase/32)%len(items)] if items else None
+            title=item['title'] if item else ('Source unavailable' if not sample else
+                'Weather data stale' if source=='weather' and stale else
+                {'weather':'No active weather warnings','floods':'No local flood alerts',
+                 'ncsc':'No NCSC articles today','news':'No headlines listed'}[source])
+            if source=='weather' and item:
+                title=title.split(' affecting ')[0]
+            heading={'weather':'WEATHER','floods':'LOCAL FLOODS','ncsc':'NCSC TODAY','news':'UK NEWS'}[source]
+            rect=(x,110,225,148)
+            self.box(rect,heading+(' / STALE' if stale else ''),ink='accent')
+            self.lines(title,139,3,22,x=x+9,width=207)
+            detail=article_date(item) if source=='ncsc' and item else scope if source=='floods' else 'MET OFFICE' if source=='weather' else 'NCSC' if source=='ncsc' else 'BBC NEWS'
+            self.text(detail,x+9,226,12,'muted',207)
+            # Thin moving channel marker, timed to the actual page rotation.
+            pygame.draw.rect(self.surface,PALETTE['border'],(x+9,250,207,2))
+            pygame.draw.rect(self.surface,PALETTE['accent'],(x+9,250,int(207*(phase%16)/16),2))
+            self.shutter(slot,(source,(sample or {}).get('fetched')),age,rect,16,offset)
+        # A quiet pulse keeps outstanding warnings visible on every rotation.
+        if warning:
+            pygame.draw.rect(self.surface,wf or PALETTE['accent'],(8,70,3,34),0 if int(age*2)%2 else 1)
         # Current and session extrema share the animated ping bar.
         net=network or dict(colour='muted',checked=None,latency=None)
         latency=net.get('latency');checked=net.get('checked')
