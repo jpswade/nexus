@@ -205,3 +205,11 @@ normal power-status indicator. Disable with
 The ping bar now uses a compact `current/max` reading in milliseconds, with a
 larger current value and smaller session maximum. Minimum and labels are hidden;
 the sweep fills the remaining width. A missing or stale current reading is `--`.
+
+The companion ping strip now plots the last 22 real latency samples, with gaps
+marked for failed probes and a pulsing newest point. Current/max remains at right.
+A completed failed probe takes over the LCD with a flashing OFFLINE screen at
+1 Hz; a successful probe restores the dashboard. This means reachability probes
+failed, not a diagnosis of the ISP. Startup without a result or a probe older than
+35 seconds shows CHECKING rather than asserting an outage. No network settings
+are changed to test this state; tests inject probe results.
