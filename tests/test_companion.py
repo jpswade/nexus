@@ -73,8 +73,7 @@ class PersistentConsoleTests(unittest.TestCase):
     def test_full_assessment_labels_fit_the_status_box(self):
         view=Companion()
         for level in ('LOW','MODERATE','SUBSTANTIAL','SEVERE','CRITICAL','UNKNOWN'):
-            size=22 if len(level)>8 else 26 if len(level)>6 else 36
-            self.assertLessEqual(view.face(size).size(level)[0],164,level)
+            self.assertLessEqual(view.face(34).size(level)[0],320,level)
 
 
 class ScifiMotionTests(unittest.TestCase):
@@ -83,7 +82,7 @@ class ScifiMotionTests(unittest.TestCase):
         data={'threat':{'level':'severe','fetched':10000}}
         for age in (0,12.9,13,13.2,19,26,39):
             surface=view.draw(data,10000,age,'')
-            pixel=surface.get_at((20,115))
+            pixel=surface.get_at((20,60))
             self.assertGreater(pixel.r,180)
             self.assertGreater(pixel.g,100)
 
@@ -91,7 +90,7 @@ class ScifiMotionTests(unittest.TestCase):
         view=Companion()
         data={'weather':{'fetched':10000,'items':[{'title':'Yellow wind warning','colour':'yellow'}]}}
         surface=view.draw(data,10000,3,'')
-        pixel=surface.get_at((310,110))
+        pixel=surface.get_at((310,101))
         self.assertGreater(pixel.r,200)
         self.assertGreater(pixel.g,180)
         self.assertLess(pixel.b,100)
@@ -102,8 +101,8 @@ class ScifiMotionTests(unittest.TestCase):
         view.draw(data,10000,3,'')
         data['weather']['fetched']=10001
         surface=view.draw(data,10001,4,'')
-        self.assertEqual(view.tiles['main'][1],4)
-        self.assertGreater(surface.get_at((20,115)).r,180)
+        self.assertEqual(view.tiles['local'][1],4)
+        self.assertGreater(surface.get_at((20,60)).r,180)
 
     def test_ping_values_share_bottom_bar_and_no_connection_box(self):
         view=Companion();calls=[]
@@ -127,7 +126,7 @@ class WeatherEmphasisTests(unittest.TestCase):
             for age in (3,16,29,42):
                 icon.reset_mock()
                 view.draw(data,10000,age,'')
-                self.assertTrue(any(call.args[1:3]==(414,65) for call in icon.call_args_list))
+                self.assertTrue(any(call.args[1:3]==(418,77) for call in icon.call_args_list))
 
 
 class OfflineScreenTests(unittest.TestCase):
@@ -141,3 +140,25 @@ class OfflineScreenTests(unittest.TestCase):
         for network in (None,{**failed,'latency':25,'colour':'accent'}, {**failed,'checked':9900}):
             surface=view.draw({},10000,2,'',network)
             self.assertLess(surface.get_at((5,5)).r,200)
+
+
+class StatusPanelsTests(unittest.TestCase):
+    def test_weather_empty_missing_and_stale_are_distinct(self):
+        for sample,expected in ((None,'WARNINGS / UNAVAILABLE'),
+                                ({'fetched':10000,'items':[]},'NO ACTIVE WARNINGS'),
+                                ({'fetched':0,'items':[]},'WARNINGS / STALE')):
+            view=Companion()
+            with patch.object(view,'text') as text:
+                view.draw({'weather':sample},10000,3,'')
+                self.assertIn(expected,[c.args[0] for c in text.call_args_list])
+
+    def test_two_channels_rotate_independently(self):
+        view=Companion()
+        view.draw({},10000,3,'')
+        self.assertEqual(view.tiles['local'][0][0],'weather')
+        self.assertEqual(view.tiles['news'][0][0],'ncsc')
+        view.draw({},10000,12,'')
+        self.assertEqual(view.tiles['local'][0][0],'weather')
+        self.assertEqual(view.tiles['news'][0][0],'news')
+        view.draw({},10000,18,'')
+        self.assertEqual(view.tiles['local'][0][0],'floods')
