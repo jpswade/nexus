@@ -195,3 +195,5 @@ script when updater changes are announced.
 The preparedness cyber panel uses CISA’s Known Exploited Vulnerabilities catalogue instead of general news. It shows global advisories added within the last 30 days, newest first, with catalogue-added dates (not incident dates). It also fills quiet NCSC days. These entries do not imply the device is affected and do not trigger emergency alerts.
 
 CVE cards show CVSS base scores from the NVD API, preferring v4.0 then v3.1/v3.0 and the primary assessor within that version. The stream names the assessor. Scores refresh every six hours; failed lookups retain labelled cached scores, and absent scores are explicit.
+
+Network activity now rotates through the companion's local panel and alternates with the main local map. It shows this Pi's non-loopback RX/TX rates, driver-reported Wi-Fi signal history, bounded gateway/internet probes and a DNS lookup check. Signal variation is not interpreted as movement or occupancy. No packet capture, device scanning or tracking is enabled. Missing readings remain unavailable; counter resets do not create traffic spikes.

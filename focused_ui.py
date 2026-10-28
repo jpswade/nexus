@@ -1,3 +1,4 @@
+from network_activity import Activity, ActivityPanel
 """Calm, original-style NEXUS: stable sidebars and one central subject."""
 import datetime as dt
 import math
@@ -20,6 +21,9 @@ LIME=(188,230,115); AMBER=(249,185,104)
 
 class FocusedDesktop:
     def __init__(self, screen, location, preview=False):
+        self.network_activity=Activity()
+        self.network_panel=ActivityPanel()
+        if not preview:self.network_activity.start()
         self.preview=preview
         self.screen=screen
         self.width,self.height=screen.get_size()
@@ -302,6 +306,16 @@ class FocusedDesktop:
             x=(330+290-self.visual.get_width()/self.scale/2)
             y=155 if workspace==0 else 172
             self.target.blit(self.visual,self.point(x,y))
+        if workspace==0 and profile=='uk' and int(seconds/16)%2:
+            state=self.network_activity.snapshot()
+            self.panel(330,105,580,537,'NETWORK OBSERVATORY','LIVE / LOCAL')
+            panel=self.network_panel.draw(state,(560,370))
+            panel=pygame.transform.smoothscale(panel,(round(560*self.scale),round(370*self.scale)))
+            self.target.blit(panel,self.point(340,155))
+            dns=state.get('dns')
+            self.text('DNS: '+('RESOLVING' if dns is True else 'CHECK FAILED' if dns is False else 'CHECKING'),350,562,16,TEAL if dns else DIM)
+            self.text('Traffic is this Pi only / no device tracking',350,602,13,DIM)
+            self.text('Wi-Fi strength is not a person or movement detector',350,627,12,DIM)
         show=manual_terminal or (not terminal_hidden and automatic_brief(workspace,age,self.changes,now))
         fresh=show and not self.terminal_visible
         self.terminal_visible=show
