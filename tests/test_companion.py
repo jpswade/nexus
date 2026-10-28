@@ -162,3 +162,17 @@ class StatusPanelsTests(unittest.TestCase):
         self.assertEqual(view.tiles['news'][0][0],'news')
         view.draw({},10000,18,'')
         self.assertEqual(view.tiles['local'][0][0],'floods')
+
+class PersistentWifiTests(unittest.TestCase):
+    def test_signal_reading_survives_rotations_and_stale_data_is_hidden(self):
+        from unittest.mock import Mock
+        view=Companion();view.activity=Mock()
+        view.activity.snapshot.return_value=dict(signal=-51,checked=10000,history=[(-51,1,1)]*60)
+        for age in (3,18,35,49):
+            with patch.object(view,'text',wraps=view.text) as text:
+                view.draw({},10000,age,'')
+                self.assertTrue(any(c.args[0]=='Wi-Fi -51 dBm' and c.args[2]>=300 for c in text.call_args_list))
+        with patch.object(view,'text',wraps=view.text) as text:
+            view.draw({},10010,3,'')
+            self.assertIn('Wi-Fi --',[c.args[0] for c in text.call_args_list])
+            self.assertNotIn('Wi-Fi -51 dBm',[c.args[0] for c in text.call_args_list])
