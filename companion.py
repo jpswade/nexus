@@ -249,15 +249,21 @@ class Companion:
         maximum=net.get('maximum')
         suffix='/'+('--' if maximum is None else str(round(maximum)))
         # Fit the reading to its actual width, leaving the rest for the sweep.
-        current_width=self.face(40).size(current)[0]
-        suffix_width=self.face(24).size(suffix)[0]
+        current_width=self.face(34).size(current)[0]
+        suffix_width=self.face(22).size(suffix)[0]
         reading_x=466-current_width-suffix_width-2
-        self.text(current,reading_x,268,40,tone,current_width)
-        self.text(suffix,reading_x+current_width+2,284,24,'muted',suffix_width)
+        self.text(current,reading_x,266,34,tone,current_width)
+        self.text(suffix,reading_x+current_width+2,278,22,'muted',suffix_width)
+        activity=self.activity.snapshot() if self.activity else {}
+        signal=activity.get('signal')
+        signal_fresh=now-activity.get('checked',0)<=5
+        wifi_label=f'Wi-Fi {signal:.0f} dBm' if signal is not None and signal_fresh else 'Wi-Fi --'
+        self.text(wifi_label,reading_x,305,12,'lime',466-reading_x)
         track=pygame.Rect(14,266,reading_x-22,54)
         pygame.draw.rect(self.surface,PALETTE['border'],track)
         previous_clip=self.surface.get_clip()
         self.surface.set_clip(track)
+        ping_track=track.copy();ping_track.height=30
         if good:
             # A measured latency trace, not a simulated progress indicator.
             history=net.get('history') or [latency]
@@ -268,11 +274,11 @@ class Companion:
             for i,value in enumerate(history):
                 x=int(track.right-(len(history)-i-.5)*step)
                 if value is None:
-                    pygame.draw.line(self.surface,PALETTE['error'],(x,track.bottom-10),(x,track.bottom-3),3)
+                    pygame.draw.line(self.surface,PALETTE['error'],(x,ping_track.bottom-10),(x,ping_track.bottom-3),3)
                     points=[]
                     continue
-                y=int(track.bottom-4-(track.height-9)*value/scale)
-                pygame.draw.line(self.surface,PALETTE['muted'],(x,track.bottom-3),(x,y),2)
+                y=int(ping_track.bottom-4-(ping_track.height-9)*value/scale)
+                pygame.draw.line(self.surface,PALETTE['muted'],(x,ping_track.bottom-3),(x,y),2)
                 if points:
                     pygame.draw.line(self.surface,PALETTE['accent'],points[-1],(x,y),2)
                 points.append((x,y))
@@ -280,6 +286,24 @@ class Companion:
                 pygame.draw.circle(self.surface,PALETTE['accent'],points[-1],3+int((math.sin(age*5)+1)))
         else:
             self.text('CHECKING',track.left+12,track.top+15,20,'muted',track.width-24)
+        # A separate lime lane keeps dBm and latency on distinct scales.
+        pygame.draw.line(self.surface,PALETTE['panel'],(track.left,296),(track.right,296),1)
+        previous=None
+        history=activity.get('history',[])[-60:] if signal_fresh else []
+        for i,row in enumerate(history):
+            value=row[0]
+            if value is None:
+                previous=None
+                continue
+            fraction=max(0,min(1,(value+100)/90))
+            point=(int(track.right-(len(history)-i-.5)*track.width/60),int(317-fraction*18))
+            if previous:
+                pygame.draw.line(self.surface,PALETTE['lime'],previous,point,2)
+            previous=point
+        if previous:
+            pygame.draw.circle(self.surface,PALETTE['lime'],previous,2)
+        else:
+            self.text('Wi-Fi unavailable',track.left+5,299,12,'muted',track.width-10)
         self.surface.set_clip(previous_clip)
         return self.surface
 
