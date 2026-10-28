@@ -14,6 +14,7 @@ from preparedness import score_label, display_items, article_date, PreparednessF
 from terminal_theme import PALETTE
 from alert_state import AlertState
 from companion_network import NetworkMonitor, sweep_duration
+from network_activity import Activity, ActivityPanel
 
 ROOT = Path(__file__).resolve().parent
 
@@ -73,6 +74,8 @@ class Companion:
         self.fonts = {}
         self.alerts = AlertState()
         self.tiles = {}
+        self.activity_panel = ActivityPanel()
+        self.activity = None
 
     def face(self, size):
         if size not in self.fonts:
@@ -199,12 +202,16 @@ class Companion:
         else:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
-        for slot,x,sources,offset in (('local',14,('weather','floods'),0),
+        for slot,x,sources,offset in (('local',14,('weather','floods','network'),0),
                                       ('news',247,('ncsc','news'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
             if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
                 source='news'
+            if source=='network':
+                state=self.activity.snapshot() if self.activity else {}
+                self.surface.blit(self.activity_panel.draw(state),(x,110))
+                continue
             sample=data.get(source)
             stale=not sample or now-sample['fetched']>MAX_AGES[source]
             items=display_items(source,sample,now)
@@ -311,8 +318,10 @@ def main():
     if not args.snapshot:
         threading.Thread(target=fallback_worker, args=(cache, config), daemon=True).start()
     network = NetworkMonitor()
+    view.activity = Activity(network)
     if not args.snapshot:
         network.start()
+        view.activity.start()
     frame_clock = pygame.time.Clock()
     start, refreshed = time.monotonic(), -100
     while True:
