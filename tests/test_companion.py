@@ -132,12 +132,12 @@ class WeatherEmphasisTests(unittest.TestCase):
 class OfflineScreenTests(unittest.TestCase):
     def test_failure_takes_over_and_recovery_restores_dashboard(self):
         view=Companion()
-        failed=dict(colour='error',checked=10000,latency=None,maximum=90)
+        failed=dict(colour='error',checked=10000,latency=None,maximum=90,offline=True)
         surface=view.draw({},10000,2,'',failed)
         self.assertGreater(surface.get_at((5,5)).r,200)
         darker=view.draw({},10000,2.6,'',failed).get_at((5,5)).r
         self.assertLess(darker,200)
-        for network in (None,{**failed,'latency':25,'colour':'accent'}, {**failed,'checked':9900}):
+        for network in (None,{**failed,'latency':25,'colour':'accent','offline':False}, {**failed,'checked':9900}):
             surface=view.draw({},10000,2,'',network)
             self.assertLess(surface.get_at((5,5)).r,200)
 

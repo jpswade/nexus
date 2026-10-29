@@ -37,6 +37,7 @@ class NetworkMonitor:
         self.state = {'label': 'CHECKING', 'detail': 'Waiting for probe', 'colour': 'muted', 'checked': None, 'latency': None, 'minimum': None, 'maximum': None, 'history': []}
         self.history = deque(maxlen=22)
         self.sequence = 0
+        self.failures = 0
         self.minimum = self.maximum = None
 
     def snapshot(self):
@@ -53,9 +54,12 @@ class NetworkMonitor:
             except OSError:
                 pass
             if address and carrier != '0':
-                result = subprocess.run(['ping', '-n', '-c', '1', '-W', '1', address],
-                                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-                lan = result.returncode == 0
+                try:
+                    result = subprocess.run(['ping', '-n', '-c', '1', '-W', '1', address],
+                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+                    lan = result.returncode == 0
+                except (OSError, subprocess.SubprocessError):
+                    pass  # A silent router must not suppress independent WAN checks.
                 for endpoint in ('1.1.1.1', '8.8.8.8'):
                     start = time.monotonic()
                     try:
@@ -70,11 +74,12 @@ class NetworkMonitor:
         if latency is not None:
             self.minimum = latency if self.minimum is None else min(self.minimum, latency)
             self.maximum = latency if self.maximum is None else max(self.maximum, latency)
+        self.failures = self.failures+1 if latency is None else 0
         self.history.append(latency)
         self.sequence += 1
         with self.lock:
             self.state = dict(label=label, detail=detail, colour=colour,
-                              checked=time.time(), latency=latency, minimum=self.minimum, maximum=self.maximum, history=list(self.history), sequence=self.sequence)
+                              checked=time.time(), latency=latency, failures=self.failures, offline=self.failures>=3, minimum=self.minimum, maximum=self.maximum, history=list(self.history), sequence=self.sequence)
 
     def start(self):
         def worker():
