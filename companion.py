@@ -163,14 +163,14 @@ class Companion:
         self.surface.fill(PALETTE['background'])
         net=network or {}
         checked=net.get('checked')
-        if checked is not None and now-checked<=35 and net.get('latency') is None:
+        if checked is not None and now-checked<=35 and net.get('offline', False):
             bright=int(age*2)%2 == 0
             colour='#ff6464' if bright else '#8b3038'
             pygame.draw.rect(self.surface,colour,(4,4,472,312),8)
             face=self.face(76)
             word=face.render('OFFLINE',True,colour)
             self.surface.blit(word,word.get_rect(center=(240,145)))
-            self.text('CONNECTION PROBES FAILED',66,210,22,'muted',350)
+            self.text('REPEATED PROBE FAILURES',66,210,22,'muted',350)
             self.text('RETRYING',180,254,20,colour,160)
             return self.surface
         alerts=self.alerts.update(data,(),now)

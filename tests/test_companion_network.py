@@ -56,3 +56,18 @@ class NetworkTests(unittest.TestCase):
         self.assertAlmostEqual(state['minimum'],10)
         self.assertAlmostEqual(state['maximum'],80)
         self.assertEqual(state['history'],[None]*22)
+
+
+class OutageConfirmationTests(unittest.TestCase):
+    def test_router_timeout_does_not_skip_wan_and_success_clears_failures(self):
+        import subprocess
+        monitor=NetworkMonitor()
+        with patch('companion_network.gateway',return_value=(None,None)):
+            for i in range(3):
+                monitor.probe()
+                self.assertEqual(monitor.snapshot()['offline'],i==2)
+        with patch('companion_network.gateway',return_value=('192.0.2.1','eth0')), patch('companion_network.Path.read_text',return_value='1'), patch('companion_network.subprocess.run',side_effect=subprocess.TimeoutExpired('ping',2)), patch('companion_network.socket.create_connection') as connect:
+            monitor.probe()
+            connect.assert_called()
+        self.assertFalse(monitor.snapshot()['offline'])
+        self.assertEqual(monitor.snapshot()['failures'],0)
