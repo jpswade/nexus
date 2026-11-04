@@ -213,4 +213,5 @@ while running:
     clock.tick(12)
     frame+=1
     if frame%120==0:print(f'Render: {clock.get_fps():.1f}fps',flush=True)
+ui.radar.stop()
 pygame.quit()

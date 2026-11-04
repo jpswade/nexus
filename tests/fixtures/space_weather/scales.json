@@ -1,0 +1,31 @@
+{
+  "0": {
+    "DateStamp": "2026-11-04",
+    "TimeStamp": "12:00:00",
+    "G": {
+      "Scale": "2"
+    },
+    "R": {
+      "Scale": "0"
+    },
+    "S": {
+      "Scale": null
+    }
+  },
+  "1": {
+    "DateStamp": "2026-11-04",
+    "TimeStamp": "12:00:00",
+    "G": {
+      "Scale": "1"
+    },
+    "R": {
+      "Scale": null,
+      "MinorProb": "25",
+      "MajorProb": "5"
+    },
+    "S": {
+      "Scale": null,
+      "Prob": "10"
+    }
+  }
+}

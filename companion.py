@@ -17,6 +17,12 @@ from emergency_alerts import EmergencyAlerts
 from emergency_alerts_ui import companion as draw_emergency
 from companion_network import NetworkMonitor, sweep_duration
 from network_activity import Activity, ActivityPanel
+from space_weather import SpaceWeather
+from space_weather_ui import SpaceWeatherPanel
+from radar_outages import RadarFeed
+import radar_ui
+from grid_notices_ui import companion as draw_grid_notices
+from grid_notices import INTERVAL as GRID_INTERVAL
 
 ROOT = Path(__file__).resolve().parent
 
@@ -79,6 +85,9 @@ class Companion:
         self.activity_panel = ActivityPanel()
         self.activity = None
         self.emergency_data = {}
+        self.space_weather = SpaceWeather()
+        self.space_panel = SpaceWeatherPanel(self.space_weather)
+        self.radar = None
 
     def face(self, size):
         if size not in self.fonts:
@@ -205,12 +214,22 @@ class Companion:
         else:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
-        for slot,x,sources,offset in (('local',14,('weather','floods','network'),0),
+        for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar','space'),0),
                                       ('news',247,('ncsc','news'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
             if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
                 source='news'
+            if source=='space':
+                self.surface.blit(self.space_panel.draw((225,148),now,age),(x,110))
+                continue
+            if source=='radar':
+                sample=self.radar.snapshot(now) if self.radar else {}
+                radar_ui.companion(self,sample,phase,x)
+                continue
+            if source=='grid':
+                draw_grid_notices(self,data.get('grid'),now,phase,x)
+                continue
             if source=='network':
                 state=self.activity.snapshot() if self.activity else {}
                 self.surface.blit(self.activity_panel.draw(state),(x,110))
@@ -323,6 +342,12 @@ def refresh_overdue(cache, config, attempted, now):
             attempted[name] = now
             feeds.refresh(name)
 
+    # The source-specific cache enforces retry spacing across process restarts.
+    grid = data.get('grid')
+    if (not grid or now-grid.get('attempted',0)>=GRID_INTERVAL) and now-attempted.get('grid',float('-inf'))>=GRID_INTERVAL:
+        attempted['grid']=now
+        feeds.refresh('grid')
+
 
 def fallback_worker(cache, config):
     attempted = {}
@@ -343,8 +368,11 @@ def main():
     cache = Path(os.environ.get('NEXUS_CACHE', ROOT/'.cache'))/'preparedness'
     view = Companion()
     emergency = EmergencyAlerts(cache)
+    view.radar = RadarFeed()
+    if not args.snapshot:view.radar.start()
     target = None if args.snapshot else Framebuffer(args.device or find_lcd())
     if not args.snapshot:
+        view.space_weather.start()
         threading.Thread(target=fallback_worker, args=(cache, config), daemon=True).start()
     network = NetworkMonitor()
     view.activity = Activity(network)
@@ -354,22 +382,25 @@ def main():
         view.activity.start()
     frame_clock = pygame.time.Clock()
     start, refreshed = time.monotonic(), -100
-    while True:
-        age = time.monotonic()-start
-        if age-refreshed >= 10:
-            # Read the main dashboard's cache, without duplicate network requests.
-            feeds = PreparednessFeeds(cache, config)
-            data, _ = feeds.snapshot()
-            refreshed = age
-        view.emergency_data = emergency.snapshot()
-        surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot())
-        if rotation == 180:
-            surface = pygame.transform.rotate(surface, 180)
-        if args.snapshot:
-            pygame.image.save(surface, args.snapshot)
-            return
-        target.write(surface)
-        frame_clock.tick(10)  # Match LCD driver cadence; include rendering time.
+    try:
+        while True:
+            age = time.monotonic()-start
+            if age-refreshed >= 10:
+                # Read the main dashboard's cache, without duplicate network requests.
+                feeds = PreparednessFeeds(cache, config)
+                data, _ = feeds.snapshot()
+                refreshed = age
+            view.emergency_data = emergency.snapshot()
+            surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot())
+            if rotation == 180:
+                surface = pygame.transform.rotate(surface, 180)
+            if args.snapshot:
+                pygame.image.save(surface, args.snapshot)
+                return
+            target.write(surface)
+            frame_clock.tick(10)  # Match LCD driver cadence; include rendering time.
+    finally:
+        view.radar.stop()
 
 
 if __name__ == '__main__':

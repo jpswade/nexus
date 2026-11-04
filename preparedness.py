@@ -1,4 +1,5 @@
 """UK public-source preparedness feeds; never synthesises a threat score."""
+from grid_notices import GridNotices
 import datetime as dt
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -227,6 +228,7 @@ def build_sources(config):
 
 class PreparednessFeeds:
     def __init__(self, directory, config):
+        self.grid = GridNotices(directory)
         self.urls, self.weather_scope, self.flood_scope = build_sources(config)
         # A changed location/region must not reuse the old location's cache.
         identity = hashlib.sha256(json.dumps(self.urls, sort_keys=True).encode()).hexdigest()[:16]
@@ -249,13 +251,21 @@ class PreparednessFeeds:
 
     def snapshot(self):
         with self.lock:
-            return self.data.copy(), self.errors.copy()
+            data, errors = self.data.copy(), self.errors.copy()
+        grid = self.grid.snapshot()
+        if grid:
+            data['grid'] = grid
+            if grid.get('failed'): errors.add('grid')
+        return data, errors
 
     def start(self):
+        self.grid.start()
         for name in self.urls:
             threading.Thread(target=self._worker, args=(name,), daemon=True).start()
 
     def refresh(self, name):
+        if name == 'grid':
+            return self.grid.refresh()
         try:
             request = urllib.request.Request(self.urls[name], headers={'User-Agent': 'NexusPreparedness/1.0', 'Accept': '*/*'})
             with urllib.request.urlopen(request, timeout=25) as response:
