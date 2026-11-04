@@ -165,7 +165,7 @@ class RenderTests(unittest.TestCase):
                 small.draw({'threat':{'level':'MODERATE','fetched':now}},now,65,'',
                            dict(checked=now,offline=False,latency=25,colour='accent'))
                 words=[str(c.args[0]) for c in text.call_args_list]
-                self.assertIn('MODERATE',words)
+                self.assertIn('UK THREAT / MODERATE',words)
                 self.assertIn('Cloudflare / CC BY-NC 4.0',words)
                 self.assertTrue(any('CYBER / GLOBAL' in s for s in words))
                 self.assertIn('Wi-Fi --',words)

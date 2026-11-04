@@ -1,3 +1,4 @@
+from status_summary import live_checks
 """480x320 Pygame companion, written directly to the ILI9486 framebuffer."""
 import argparse
 import datetime as dt
@@ -193,12 +194,15 @@ class Companion:
               'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level,'#203640')
         ink='text' if level=='UNKNOWN' else '#081116'
         pygame.draw.rect(self.surface,fill,(0,0,480,66))
-        self.text('NEXUS / UK TERRORISM'+(' / STALE' if stale else ''),16,3,14,ink,300)
-        self.text(level,14,20,34,ink,320)
-        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'),371,4,27,ink,103)
-        for i in range(5):
-            active=i<({'LOW':1,'MODERATE':2,'SUBSTANTIAL':3,'SEVERE':4,'CRITICAL':5}.get(level,0))
-            pygame.draw.rect(self.surface,ink if active else '#55605b',(374+i*19,43,14,10),0 if active else 1)
+        self.text('UK THREAT / '+level+(' / STALE' if stale else ''),14,3,18,ink,345)
+        self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'),382,2,25,ink,94)
+        checks=live_checks(data,self.emergency_data,now,alerts=alerts)
+        for i,(name,value,state) in enumerate(checks[:2]+checks[3:]):
+            x=8+i*158
+            pygame.draw.rect(self.surface,PALETTE['panel'],(x,29,154,34))
+            colour='#e6a23c' if state in ('alert','stale') else 'accent' if state=='ok' else 'muted'
+            self.text(name,x+5,30,10,'muted',144)
+            self.text(value,x+5,42,16,colour,144)
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
         weather_stale=not weather or now-weather['fetched']>MAX_AGES['weather']
