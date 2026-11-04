@@ -1,5 +1,5 @@
 """Source-specific layouts; leave persistent threat and network areas untouched."""
-from grid_notices import card, CREDIT
+from grid_notices import card
 
 
 def desktop(ui, sample, now, phase):
@@ -15,7 +15,6 @@ def desktop(ui, sample, now, phase):
     ui.text('National system notices do not confirm a local power cut.',350,484,13)
     ui.text(row['checked'],350,512,12)
     ui.text(row['source'],350,540,13)
-    ui.wrap(CREDIT,350,573,535,11,lines=2)
     ui.register((330,105,580,537),row['url'])
 
 
@@ -30,10 +29,5 @@ def companion(ui, sample, now, phase, x):
     status = ('Cancellation / check source' if 'cancellation' in row['detail']
               and int(phase//4)%2 else 'Validity / active unknown')
     ui.text(status,x+9,191,12,'muted',207)
-    # Alternate metadata with the full attribution, without reducing font size.
-    if int(phase//8)%2:
-        ui.text('contains BMRS data © Elexon',x+9,210,11,'muted',207)
-        ui.text('Limited copyright and database right',x+9,226,10,'muted',207)
-    else:
-        ui.text('Elexon Insights / BMRS',x+9,210,12,'accent',207)
-        ui.text('Local power cut not confirmed',x+9,226,12,'muted',207)
+    ui.text('Elexon Insights / BMRS',x+9,210,12,'accent',207)
+    ui.text('Local power cut not confirmed',x+9,226,12,'muted',207)

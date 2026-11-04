@@ -35,7 +35,6 @@ def panel(data, now, age, size):
             text('Local applicability unverified', step + 2)
             text('Checked: ' + stamp(data.get('fetched')), 2 * step + 2)
             text('gov.uk/alerts/current-alerts', 3 * step + 2)
-            text('Crown copyright / OGL v3.0', 4 * step + 2)
         return image, CURRENT
     def wrapped(value):
         result = []; current = ''
@@ -69,7 +68,7 @@ def panel(data, now, age, size):
     footer = height - 3 * step
     text('Instructions %s/%s / local applicability unverified' % (page + 1, pages), footer)
     text(row['url'].replace('https://www.', ''), footer + step)
-    text(('LAST KNOWN / ' if stale else '') + 'Crown copyright / OGL v3.0', footer + 2 * step)
+    text(('LAST KNOWN / ' if stale else '') + 'GOV.UK Emergency Alerts', footer + 2 * step)
     return image, row['url']
 
 

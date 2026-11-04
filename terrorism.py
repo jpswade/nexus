@@ -65,7 +65,7 @@ def threat_details(sample, now, failed=False):
         values = sample['observations']
         source = f"GOV.UK {values['GOV.UK']['level']} / MI5 {values['MI5']['level']}"
     else:
-        source = name + (' / fallback' if name == 'MI5' else '') + ' / Crown copyright'
+        source = name + (' / fallback' if name == 'MI5' else '')
     stale = failed or now-sample['fetched'] > 7200
     stamp = dt.datetime.fromtimestamp(sample['fetched'], dt.timezone.utc).strftime('%d %b %H:%M UTC')
     return source, ('STALE / last OK ' if stale else 'Checked ')+stamp
