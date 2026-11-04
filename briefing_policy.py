@@ -153,7 +153,6 @@ def build_cards(context, now):
                 from grid_notices import classify
                 body.insert(0, classify(row.get('title',''))[0])
                 body.append('Bulletin only; validity/cancellation unstructured. No local outage inferred.')
-                body.append('Contains BMRS data © Elexon Limited copyright and database right.')
             identity = str(row.get('id') or row.get('url') or title)
             severity = {'critical': 'critical', 'high': 'warning', 'medium': 'advisory'}.get(str(row.get('severity')).lower(), 'info') if name == 'php' else 'info'
             add(name + ':' + identity, group, title, body, source, row.get('url', url), sample,
@@ -166,11 +165,11 @@ def build_cards(context, now):
         identity = '|'.join(str(row.get(k)) for k in ('start', 'provider', 'location', 'scope'))
         add('radar:' + hashlib.sha256(identity.encode()).hexdigest()[:16], 'infrastructure', 'Reported internet outage',
             [row.get('provider'), row.get('location'), row.get('kind'), row.get('scope'), 'Context only; not Pi diagnosis.'],
-            'Cloudflare Radar / CC BY-NC 4.0', 'https://radar.cloudflare.com/outage-center', radar, dict(row, published=row.get('start')), age=1800)
+            'Cloudflare Radar', 'https://radar.cloudflare.com/outage-center', radar, dict(row, published=row.get('start')), age=1800)
 
     for name in ('scales', 'alerts', 'met'):
         sample = (context.get('space') or {}).get(name) or {}
-        source = 'Met Office / OGL v3.0' if name == 'met' else 'NOAA SWPC'
+        source = 'Met Office' if name == 'met' else 'NOAA SWPC'
         rows = [sample] if name == 'met' and sample.get('headline') else sample.get('rows', [])
         feed('space:' + name, sample, 'infrastructure', source, sample.get('url', ''), rows, 21600 if name == 'met' else 900)
         for row in rows:

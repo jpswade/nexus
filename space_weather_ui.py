@@ -103,7 +103,7 @@ class SpaceWeatherPanel:
                      102 if compact else 353, 12 if compact else 16, DIM)
                 if not compact:
                     wrap('UK context; global space-weather forecast. Headline only: open Met Office for day-by-day detail.', 401, 3, 17)
-                    text('© Crown copyright / Met Office / OGL', margin, 482, 12, DIM)
+                    text('Met Office', margin, 482, 12, DIM)
             else:
                 wrap('UK forecast unavailable. Open Met Office for context.', 48 if compact else 120, 2 if compact else 4, 16 if compact else 24)
         else:
