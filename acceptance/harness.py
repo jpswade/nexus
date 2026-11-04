@@ -46,8 +46,8 @@ def validate_cards(cards):
                 continue
             if type(value) not in (int, float) or not math.isfinite(value):
                 raise ValueError(f'{key} must be finite numeric epoch/duration')
-            if key == 'duration' and value <= 0:
-                raise ValueError('duration must be positive')
+            if key == 'duration' and value < 0:
+                raise ValueError('duration must be nonnegative (zero is summary-only)')
 
 
 def packaging_errors(root=ROOT):

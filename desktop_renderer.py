@@ -5,6 +5,7 @@ policy argument is dependency injection for synthetic, offline contract previews
 """
 import datetime as dt
 import importlib
+import math
 import pygame
 from camera_eye import draw as draw_camera_eye
 from status_summary import live_checks
@@ -95,11 +96,11 @@ class DesktopRenderer:
         ui.text(state+' / '+severity,x+18,y+42,13,AMBER if state=='STALE' else TEAL,True)
         self.lines(card['title'],x+18,y+70,w-36,24,TEXT,3)
         body='\n'.join(card['body'])
-        self.lines(body,x+18,y+170,w-36,18,TEXT,4)
-        self.lines(card['source'],x+18,y+h-136,w-36,14,TEAL,1)
-        ui.text('Published '+stamp(card['published']),x+18,y+h-112,12,DIM)
-        ui.text('Checked '+stamp(card['checked']),x+18,y+h-91,12,DIM)
-        ui.text('Valid until '+stamp(card['valid_until']),x+18,y+h-70,12,DIM)
+        self.lines(body,x+18,y+170,w-36,18,TEXT,5)
+        self.lines(card['source'],x+18,y+h-120,w-36,14,TEAL,1)
+        ui.text('Published '+stamp(card['published']),x+18,y+h-98,12,DIM)
+        ui.text('Checked '+stamp(card['checked']),x+18,y+h-78,12,DIM)
+        ui.text('Valid until '+stamp(card['valid_until']),x+18,y+h-58,12,DIM)
         ui.text('DETAILS / FULL TEXT',x+18,y+h-36,13,LIME)
         ui.text(f"Dwell {card['duration']:g}s",x+w-18,y+h-36,12,DIM,right=True)
         self.detail_buttons.append(((x+8,y+h-48,w-16,42),card))
@@ -116,6 +117,19 @@ class DesktopRenderer:
             stale=failed or checked is None or not 0<=now-checked<=1800
             ui.text('STALE' if stale else 'CURRENT',48,457,16,AMBER if stale else TEAL)
             ui.text('Checked '+stamp(checked),48,497,15,DIM)
+            ui.text('High '+str(weather.get('high','--'))+'° / Low '+str(weather.get('low','--'))+'°',48,535,20,TEAL)
+            # Small procedural weather icon; source conditions determine its form.
+            cx,cy=ui.point(595,345);r=max(8,round(35*ui.scale))
+            code=weather.get('code')
+            if code in (0,1,2):
+                pygame.draw.circle(ui.target,LIME,(cx,cy),r,2)
+                for i in range(8):
+                    a=i*math.pi/4+now*.015
+                    pygame.draw.line(ui.target,LIME,(cx+math.cos(a)*r*1.3,cy+math.sin(a)*r*1.3),(cx+math.cos(a)*r*1.6,cy+math.sin(a)*r*1.6),2)
+            if code not in (0,1):
+                for dx,dy,rr in [(-28,5,24),(0,-10,32),(29,7,23)]:
+                    pygame.draw.circle(ui.target,TEAL,(cx+round(dx*ui.scale),cy+round(dy*ui.scale)),round(rr*ui.scale),2)
+
         else:
             self.lines('Local weather unavailable',48,320,640,28,DIM)
             self.lines('No successful check; conditions unknown.',48,397,640,18,DIM)
@@ -147,7 +161,7 @@ class DesktopRenderer:
         label=connection.get('label','CHECKING')
         ui.line((28,649),(1252,649))
         ui.text('PI LINK / '+label,28,658,13,TEAL,True)
-        ui.text('Ping '+('--' if latency is None else f'{latency:.0f} ms'),320,658,13,DIM)
+        ui.text('Ping '+('--' if latency is None else f'{latency:.0f}')+'/'+str(round(connection['maximum']) if connection.get('maximum') is not None else '--')+' ms',320,658,13,DIM)
         ui.text('Wi-Fi '+('--' if signal is None else f'{signal:.0f} dBm'),500,658,13,DIM)
         ui.text('DNS '+('OK' if state.get('dns') is True else 'FAILED' if state.get('dns') is False else 'UNKNOWN'),700,658,13,DIM)
         for values,x,color,ceiling,floor in ((self.ping_history,880,LIME,200,0),
@@ -171,12 +185,13 @@ class DesktopRenderer:
                 radar=ui.radar.snapshot(now,offline=network.get('connection',{}).get('offline',False)),
                 space=ui.space_weather.snapshot(now),network=network,motion=ui.motion.snapshot(now),
                 source_records=ui.source_records,planet=planet,location=ui.location,
-                telemetry=dict(cpu=self.telemetry.cpu,memory=self.telemetry.memory,temperature=self.telemetry.temperature),
+                telemetry=dict(cpu=self.telemetry.cpu,memory=self.telemetry.memory,temperature=self.telemetry.temperature,checked=now,signal=network.get('signal'),traffic=network.get('history',[])[-1:] ),
                 uk_errors=uk_errors,sec_errors=sec_errors,planet_errors=planet_errors,weather_failed=weather_failed)
             self.cards=self.policy.build_cards(self.context,now) if self.policy else []
         selection_now=now
         visible=[c for c in self.cards if c['group']!='observatory']
-        primary=self.priority.select(visible,selection_now) if self.policy else None
+        pinned=[c for c in visible if c['pinned'] and c['duration']>0]
+        primary=self.priority.select(pinned,selection_now) if self.policy else None
         group=None if automatic else GROUPS[workspace]
         remaining=[c for c in (visible if automatic else self.cards) if primary is None or c['id']!=primary['id']]
         briefing=self.stream.select(remaining,selection_now,group=group) if self.policy else None
@@ -187,7 +202,8 @@ class DesktopRenderer:
             ui.text('N E X U S',28,22,25,TEXT,True)
             ui.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'),28,55,18,LIME,True)
             # Summary may count source rows, but does not choose priority content.
-            alerts=[{'source':name} for name in ('weather','floods') for _ in uk.get(name,{}).get('items',[])]
+            from alert_state import AlertState
+            alerts=AlertState().update(uk,uk_errors,now)
             for i,(label,value,state) in enumerate(live_checks(uk,ui.emergency_data,now,uk_errors,alerts)):
                 x=245+i*251
                 ui.text(label,x,16,12,DIM,True)
@@ -200,7 +216,7 @@ class DesktopRenderer:
             ui.register((28,84,1224,45),(threat or {}).get('url','https://www.gov.uk/terrorism-national-emergency'))
             ui.text(('AUTO BRIEFING' if automatic else NAMES[workspace].upper())+(' / PAUSED' if paused else ''),28,137,12,LIME,True)
             ui.text('1 Situation   2 Cyber   3 Infrastructure   4 Node   5 Observatory (manual)',1252,137,12,DIM,right=True)
-            if primary:self.card(primary,(28,166,690,472),'PRIORITY / POLICY SELECTED')
+            if primary:self.card(primary,(28,166,690,472),'PRIORITY / SOURCE WARNING')
             else:self.local(weather,weather_failed,now)
             self.card(briefing,(736,166,516,472),'BRIEFING / '+('AUTO' if automatic else NAMES[workspace].upper()))
             if not self.policy:
@@ -212,4 +228,12 @@ class DesktopRenderer:
             self.network(self.context['network'])
             ui.text('A auto/manual   O source   Click details / PgUp PgDn   F5 home   F6 profile',28,696,12,DIM)
         ui.target=ui.screen;ui.target.blit(ui.static,(0,0))
+        connection=self.context['network'].get('connection',{})
+        if connection.get('offline') and 0 <= now-connection.get('checked',0) <= 35:
+            ui.target.fill(BG)
+            tone=(255,100,100) if int(seconds*2)%2==0 else (139,48,56)
+            ui.text('OFFLINE',640,265,90,tone,True,right=True)
+            ui.text('Repeated probe failures / retrying',340,390,24,DIM)
+            self.network(self.context['network'])
+            return
         draw_camera_eye(ui.target,self.context['motion'],now,ui.point(208,35),max(6,round(12*ui.scale)))

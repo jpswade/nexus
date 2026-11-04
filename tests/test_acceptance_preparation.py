@@ -23,7 +23,7 @@ class AcceptancePreparationTests(unittest.TestCase):
     def test_rejects_contract_corruption(self):
         for changes in ({'id': ''}, {'body': 'text'}, {'body': [1]},
                         {'pinned': 1}, {'state': 'safe'}, {'severity': 'risk-7'},
-                        {'group': 'emergency'}, {'duration': 0}, {'duration': True},
+                        {'group': 'emergency'}, {'duration': -1}, {'duration': True},
                         {'checked': float('nan')}, {'published': 'today'},
                         {'valid_until': float('inf')}, {'source': None}):
             with self.subTest(changes=changes), self.assertRaises(ValueError):

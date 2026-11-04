@@ -43,7 +43,7 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual((quiet['state'], quiet['duration']), ('current', 0))
         failed = indexed(SCENARIOS['failed_feed'])['ncsc:check']
         self.assertEqual((failed['state'], failed['checked'], failed['severity']), ('unavailable', NOW, 'info'))
-        self.assertGreater(failed['duration'], 0)
+        self.assertEqual(failed['duration'], 0)  # Failure stays in checks/details, not empty rotation.
 
     def test_retained_warning_and_expiry(self):
         fresh = warning(SCENARIOS['new_warning'])
@@ -89,7 +89,7 @@ class PolicyTests(unittest.TestCase):
             for key in ('motion', 'network'):
                 self.assertEqual(cards[key]['severity'], 'info')
                 self.assertFalse(cards[key]['pinned'])
-            self.assertEqual(cards['motion']['duration'], 0)
+            self.assertGreater(cards['motion']['duration'], 0)
         self.assertIn('Confirmed offline', indexed(SCENARIOS['offline'])['network']['body'])
         self.assertNotIn('Confirmed offline', indexed(SCENARIOS['recovery'])['network']['body'])
 

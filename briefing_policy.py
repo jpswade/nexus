@@ -44,9 +44,14 @@ def build_cards(context, now):
     Retention belongs to feed caches: supply the last successful payload with
     failed=True (or a failed source record), never replace it with an empty feed.
     """
-    context = context or {}
+    context = dict(context or {})
+    if not isinstance(context.get('location'), dict):
+        context['location'] = {'floods_scope': str(context.get('location') or '')}
     uk, security = (_snapshot(context.get(k)) for k in ('uk', 'security'))
-    records = context.get('source_records') or {}
+    records = dict(context.get('source_records') or {})
+    for key in ('uk_errors', 'sec_errors', 'planet_errors'):
+        for name in context.get(key, ()):
+            records[name] = dict(records.get(name, {}), failed=True)
     cards = {}
 
     def add(key, group, title, body, source, url='', sample=None, row=None,
@@ -66,17 +71,17 @@ def build_cards(context, now):
         if severity in ('warning', 'critical', 'advisory') and end is None:
             body.append('Validity end not established; check source.')
         words = len((' '.join([title] + body)).split())
-        duration = 0 if summary else max(12, math.ceil(words / 2.5) + 4)
+        duration = 0 if summary or ended and group == 'situation' else max(12, math.ceil(words / 2.5) + 4)
         cards[key] = dict(id=key, group=group, title=str(title), body=body,
             source=source, url=url or '', published=_stamp(row.get('published', row.get('issued', row.get('updated')))),
             checked=checked, valid_until=end, state=state, severity=severity,
-            pinned=not ended and severity in ('warning', 'critical'), duration=duration)
+            pinned=not ended and group in ('situation','infrastructure') and severity in ('warning', 'critical'), duration=duration)
 
     def feed(name, sample, group, source, url, rows, age=3600):
         state, _ = _health(sample or {}, records.get(name, {}), now, age)
         if not rows:
             add(name + ':check', group, source, ['None returned in display window; not an all-clear.'] if state == 'current' else ['Source check unavailable or stale.'],
-                source, url, sample, age=age, record=name, summary=state == 'current')
+                source, url, sample, age=age, record=name, summary=True)
 
     threat = uk.get('threat') or {}
     body = ['Official national assessment: ' + str(threat.get('level', 'unknown'))]
@@ -88,7 +93,7 @@ def build_cards(context, now):
         body.append('MI5 fallback / GOV.UK assessment unavailable.')
     add('threat', 'situation', 'UK terrorism assessment', body,
         threat.get('source_name', 'GOV.UK / MI5'), threat.get('url', LINKS['threat']), threat,
-        threat, severity={'severe': 'warning', 'critical': 'critical'}.get(str(threat.get('level')).lower(), 'info'), age=7200)
+        threat, severity={'severe': 'warning', 'critical': 'critical'}.get(str(threat.get('level')).lower(), 'info'), age=7200, summary=True)
 
     for name, source in [('weather', 'Met Office'), ('floods', 'Environment Agency')]:
         sample = uk.get(name) or {}
@@ -119,6 +124,9 @@ def build_cards(context, now):
 
     # One CISA model: the legacy UK "news" slot is KEV, never BBC news.
     kev = security.get('kev') or uk.get('news') or {}
+    enriched = {r.get('id'): r for r in (uk.get('news') or {}).get('items', [])}
+    if security.get('kev'):
+        kev = dict(kev, items=[dict(r, **{k:v for k,v in enriched.get(r.get('id'),{}).items() if k in ('score','severity','cvss_version','score_source','score_cached')}) for r in kev.get('items',[])])
     if not security.get('kev') and records.get('news', {}).get('failed'):
         kev = dict(kev, failed=True)
     for name, sample, source, group, url, window in [
@@ -126,7 +134,7 @@ def build_cards(context, now):
         ('kev', kev, 'CISA KEV', 'cyber', LINKS['news'], 30*86400),
         ('php', security.get('php') or {}, 'PHP security advisories', 'cyber', 'https://github.com/php/php-src/security/advisories', 90*86400),
         ('phpnews', security.get('phpnews') or {}, 'PHP releases', 'cyber', 'https://www.php.net/releases/', 90*86400),
-        ('grid', uk.get('grid') or {}, 'Elexon', 'infrastructure', 'https://bmrs.elexon.co.uk/', 7*86400),
+        ('grid', uk.get('grid') or {}, 'Elexon', 'infrastructure', 'https://data.elexon.co.uk/bmrs/api/v1/system/warnings', 7*86400),
         ('govuk', uk.get('govuk') or {}, 'GOV.UK briefings', 'situation', 'https://www.gov.uk/search/all', 7*86400)]:
         rows = display_items('ncsc', sample, now) if name == 'ncsc' else [r for r in sample.get('items', [])
             if (published := _stamp(r.get('published', r.get('added')))) is not None and 0 <= now-published <= window]
@@ -134,14 +142,18 @@ def build_cards(context, now):
         feed(name, sample, group, source, url, rows, age)
         for row in rows:
             title = row.get('title') or row.get('summary') or row.get('name') or row.get('id', source)
-            body = [row.get('text'), row.get('description')]
+            body = [row.get('text'), row.get('description'), row.get('summary')]
+            if name == 'php': body += ['Fixed versions: '+', '.join(row.get('patches') or ['See vendor advisory'])]
             if name == 'kev':
                 body += [row.get('id'), 'Known exploited vulnerability / asset exposure not assessed.', row.get('action')]
             if name in ('php', 'kev'):
                 body += ['CVSS: ' + str(row.get('score', 'unavailable')) + ' / assessor: ' + str(row.get('score_source', 'source advisory')),
                          'Source severity: ' + str(row.get('severity', 'unknown'))]
             if name == 'grid':
+                from grid_notices import classify
+                body.insert(0, classify(row.get('title',''))[0])
                 body.append('Bulletin only; validity/cancellation unstructured. No local outage inferred.')
+                body.append('Contains BMRS data © Elexon Limited copyright and database right.')
             identity = str(row.get('id') or row.get('url') or title)
             severity = {'critical': 'critical', 'high': 'warning', 'medium': 'advisory'}.get(str(row.get('severity')).lower(), 'info') if name == 'php' else 'info'
             add(name + ':' + identity, group, title, body, source, row.get('url', url), sample,
@@ -154,11 +166,11 @@ def build_cards(context, now):
         identity = '|'.join(str(row.get(k)) for k in ('start', 'provider', 'location', 'scope'))
         add('radar:' + hashlib.sha256(identity.encode()).hexdigest()[:16], 'infrastructure', 'Reported internet outage',
             [row.get('provider'), row.get('location'), row.get('kind'), row.get('scope'), 'Context only; not Pi diagnosis.'],
-            'Cloudflare Radar', 'https://radar.cloudflare.com/outage-center', radar, dict(row, published=row.get('start')), age=1800)
+            'Cloudflare Radar / CC BY-NC 4.0', 'https://radar.cloudflare.com/outage-center', radar, dict(row, published=row.get('start')), age=1800)
 
     for name in ('scales', 'alerts', 'met'):
         sample = (context.get('space') or {}).get(name) or {}
-        source = 'Met Office space weather' if name == 'met' else 'NOAA SWPC'
+        source = 'Met Office / OGL v3.0' if name == 'met' else 'NOAA SWPC'
         rows = [sample] if name == 'met' and sample.get('headline') else sample.get('rows', [])
         feed('space:' + name, sample, 'infrastructure', source, sample.get('url', ''), rows, 21600 if name == 'met' else 900)
         for row in rows:
@@ -177,21 +189,28 @@ def build_cards(context, now):
                 21600 if name == 'met' else 900, expired=row.get('state') in ('expired', 'cancelled'))
 
     weather = context.get('weather') or {}
+    if context.get('weather_failed'): weather = dict(weather, failed=True)
     add('conditions', 'situation', 'Local weather conditions',
-        [key + ': ' + str(weather.get(key, 'unknown')) for key in ('temp', 'high', 'low', 'code')],
-        'Open-Meteo', 'https://open-meteo.com/', weather, age=1800)
+        ['Temperature: '+str(weather.get('temp','unknown'))+' C', 'High / low: '+str(weather.get('high','unknown'))+' / '+str(weather.get('low','unknown'))+' C'],
+        'Open-Meteo', 'https://open-meteo.com/', weather, age=1800, summary=not weather)
     network = context.get('network') or {}
+    network = network.get('connection',network)
     add('network', 'node', 'Network checks',
         [network.get('label', 'Unknown'), 'Confirmed offline' if network.get('offline') is True else 'Offline not confirmed',
-         'Latency ms: ' + str(network.get('latency', 'unknown'))], 'Local probes', sample=network, age=60)
+         'Latency ms: ' + str(network.get('latency', 'unknown'))], 'Local probes', sample=network, age=60, summary=not network)
     motion = context.get('motion') or {}
     add('motion', 'node', 'Camera movement experiment',
         ['Camera: ' + ('available' if motion.get('online') else 'unavailable'), 'Movement state: ' + str(motion.get('state', 'unknown')),
-         'Movement is not occupancy; no emergency inference.'], 'Local camera', sample=motion, age=60, summary=True)
+         'Movement is not occupancy; no emergency inference.'], 'Local camera', sample=motion, age=60, summary=not motion)
     telemetry = context.get('telemetry') or {}
     add('telemetry', 'node', 'Local node measurements',
         [key + ': ' + str(telemetry.get(key, 'unknown')) for key in ('cpu', 'memory', 'temperature', 'uptime', 'signal', 'traffic')],
-        'Local telemetry', sample=telemetry, age=60)
+        'Local telemetry', sample=telemetry, age=60, summary=not telemetry)
+    if records:
+        body=[]
+        for name, record in sorted(records.items()):
+            body.append(name.upper()+': '+('failed / retained cache' if record.get('failed') else 'last check recorded'))
+        add('source-health','node','Source check history',body,'Local check journal',sample={'checked':now})
     planet = _snapshot(context.get('planet'))
     for name, keys, age in [('iss', ('altitude', 'velocity'), 120), ('quakes', ('events',), 1200),
                              ('kp', ('value',), 18000), ('wind', ('value',), 1800), ('doomsday', ('label',), 86400)]:
@@ -220,7 +239,7 @@ class Rotation:
     def select(self, cards, now, group=None):
         eligible = {c['id']: c for c in cards if c['duration'] > 0
                     and (c['group'] == group if group is not None else c['group'] != 'observatory')
-                    and (c['valid_until'] is None or now < c['valid_until'])}
+                    and (c['state']=='info' or c['valid_until'] is None or now < c['valid_until'])}
         if group != self._group or self._last_now is not None and now < self._last_now:
             self._active, self._queue = None, []
         self._group, self._last_now = group, now
@@ -229,7 +248,7 @@ class Rotation:
         self._queue = [key for key in self._queue if key in eligible]
         if not self._queue:
             ranks = {'critical': 3, 'warning': 2, 'advisory': 1, 'info': 0}
-            self._queue = sorted(eligible, key=lambda key: (-int(eligible[key]['pinned']), -ranks[eligible[key]['severity']], key))
+            self._queue = sorted(eligible, key=lambda key: (-int(eligible[key]['pinned']), -ranks[eligible[key]['severity']], -(eligible[key]['published'] or 0), key))
         if not self._queue:
             self._active = None
             return None

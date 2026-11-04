@@ -36,7 +36,7 @@ class ContractTests(unittest.TestCase):
         context, now = view.policy.build_cards.call_args.args
         self.assertEqual(now, NOW)
         self.assertEqual(context['weather'], {'temperature': 12})
-        self.assertEqual(context['location'], 'synthetic locality')
+        self.assertEqual(context['location'], {'floods_scope':'synthetic locality'})
         for name in ('uk','emergency','network','motion','source_records','space','radar'):
             self.assertIn(name, context)
         view.rotation.select.assert_called_once_with([selected], NOW)

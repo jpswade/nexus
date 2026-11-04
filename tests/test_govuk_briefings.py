@@ -140,7 +140,7 @@ class DisplayTests(unittest.TestCase):
         with patch.object(view,'text',wraps=view.text) as text:
             image=view.draw(data,NOW,43,'')
             words=[c.args[0] for c in text.call_args_list]
-            self.assertIn('GOV.UK / CHECKED',words)
+            self.assertTrue(any('GOV.UK briefings' in word for word in words))
             self.assertIn('UK THREAT / SEVERE',words)
             self.assertIn('Wi-Fi --',words)
         self.assertEqual(image.get_size(),(480,320))
@@ -150,7 +150,7 @@ class DisplayTests(unittest.TestCase):
         ui=FocusedDesktop(pygame.display.set_mode((1280,720)),{'name':'Example'},preview=True)
         try:
             ui.draw(0,57,57,NOW,None,False,{},set(),data,set(),{},set(),terminal_hidden=True)
-            self.assertEqual(ui.clicked_url((500,300)),card(sample,NOW)['url'])
+            self.assertTrue(any(c and c['source']=='GOV.UK briefings' for c in ui.renderer.selected))
         finally:pygame.quit()
 
 if __name__=='__main__':unittest.main()

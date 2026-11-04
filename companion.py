@@ -234,11 +234,14 @@ class Companion:
                    'source_records': self.source_records,
                    'space': self.space_weather.snapshot(now),
                    'radar': self.radar.snapshot(now) if self.radar else {},
-                   'location': self.context.get('location', scope)}
+                   'location': self.context.get('location') if isinstance(self.context.get('location'),dict) else {'floods_scope':scope}, 'uk_errors':errors}
         card = None
         if self.policy is not None:
-            cards = self.policy.build_cards(context, now)
-            card = self.rotation.select(cards, now)
+            if getattr(self,'cards_tick',None) != int(now):
+                self.cards_tick=int(now)
+                self.cards=self.policy.build_cards(context, now)
+            pinned=[c for c in self.cards if c['pinned'] and c['duration']>0]
+            card = self.rotation.select(pinned or self.cards, now)
         self.card_renderer.draw(self, card, age, self.policy is not None)
         # Current and session extrema share the animated ping bar.
         net=network or dict(colour='muted',checked=None,latency=None)
@@ -386,7 +389,7 @@ def main():
                 except (OSError, ValueError):
                     conditions = None
                 view.context = dict(security=security_data, planet=planet_data,
-                                    weather=conditions, location=feeds.flood_scope)
+                                    weather=conditions, location={'name':config.get('location','Local area'),'floods_scope':feeds.flood_scope})
                 refreshed = age
             view.emergency_data = emergency.snapshot()
             surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot(), errors)

@@ -154,9 +154,9 @@ class RenderTests(unittest.TestCase):
             view=FocusedDesktop(pygame.display.get_surface(),{'name':'Example'},preview=True)
             view.radar=feed
             with patch.object(view,'text',wraps=view.text) as text:
-                view.draw(0,33,33,now,None,False,{},set(),{'threat':{'level':'MODERATE','fetched':now}},set(),{},set(),automatic=False)
+                view.draw(2,33,33,now,None,False,{},set(),{'threat':{'level':'MODERATE','fetched':now}},set(),{},set(),automatic=False)
                 words=[str(c.args[0]) for c in text.call_args_list]
-                self.assertIn('MODERATE',words)
+                self.assertIn('UK TERRORISM / MODERATE',words)
                 self.assertIn('Cloudflare Radar / CC BY-NC 4.0',words)
             if os.environ.get('NEXUS_RADAR_RENDER_DIR'):
                 pygame.image.save(view.screen,str(Path(os.environ['NEXUS_RADAR_RENDER_DIR'])/'desktop.png'))
@@ -166,8 +166,9 @@ class RenderTests(unittest.TestCase):
                            dict(checked=now,offline=False,latency=25,colour='accent'))
                 words=[str(c.args[0]) for c in text.call_args_list]
                 self.assertIn('UK THREAT / MODERATE',words)
-                self.assertIn('Cloudflare / CC BY-NC 4.0',words)
-                self.assertTrue(any('CYBER / GLOBAL' in s for s in words))
+                small.draw({'threat':{'level':'MODERATE','fetched':now}},now+100,165,'',dict(checked=now+100,offline=False,latency=25,colour='accent'))
+                self.assertIn('Cloudflare Radar / CC BY-NC 4.0',' '.join(sum(small.card_renderer.pages,[])))
+                self.assertTrue(small.card_renderer.active[0].startswith('radar:'))
                 self.assertIn('Wi-Fi --',words)
             if os.environ.get('NEXUS_RADAR_RENDER_DIR'):
                 pygame.image.save(small.surface,str(Path(os.environ['NEXUS_RADAR_RENDER_DIR'])/'companion.png'))

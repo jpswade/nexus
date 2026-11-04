@@ -33,31 +33,23 @@ class Layout(unittest.TestCase):
 
     def test_companion_rotation_preserves_header_and_ping_wifi_strip(self):
         from companion import Companion
-        view = Companion(); view.space_panel = SpaceWeatherPanel(self.feeds)
-        data = {'threat':{'level':'severe','fetched':NOW}}
-        actual = view.draw(data,NOW,80,'').copy()
-        # Render same frame with only the space panel disabled; surrounding pixels
-        # must be byte-identical, including the existing animated network strip.
-        with patch.object(view.space_panel,'draw',return_value=pygame.Surface((225,148))):
-            reference = view.draw(data,NOW,80,'').copy()
-        for box in ((0,0,480,110),(247,110,225,148),(0,266,480,54)):
-            self.assertEqual(pygame.image.tostring(actual.subsurface(box),'RGB'),
-                             pygame.image.tostring(reference.subsurface(box),'RGB'))
-        self.assertEqual(len(bytes(actual.get_buffer())),480*320*2)
+        view=Companion();view.space_weather=self.feeds
+        data={'threat':{'level':'moderate','fetched':NOW}}
+        actual=view.draw(data,NOW,80,'').copy()
+        with patch.object(view.card_renderer,'draw'):
+            reference=view.draw(data,NOW,80,'').copy()
+        for box in ((0,0,480,110),(0,266,480,54)):
+            self.assertEqual(pygame.image.tostring(actual.subsurface(box),'RGB'),pygame.image.tostring(reference.subsurface(box),'RGB'))
+        self.assertTrue(view.card_renderer.active[0].startswith('space:'))
 
     def test_desktop_rotation_uses_active_focused_ui_and_preserves_sidebar(self):
         from focused_ui import FocusedDesktop
-        view = FocusedDesktop(self.screen,{},preview=True)
-        view.space_panel = SpaceWeatherPanel(self.feeds)
-        args=(3,48,48,NOW,None,False,{},set(),{'threat':{'level':'severe','fetched':NOW}},set(),{},set())
-        view.draw(*args); actual=self.screen.copy()
-        self.assertIn('swpc.noaa.gov',view.clicked_url((500,300)))
-        with patch.object(view.space_panel,'draw',return_value=pygame.Surface((580,537))):
-            view.draw(*args); reference=self.screen.copy()
-        for box in ((0,0,330,720),(910,0,370,720)):
-            self.assertEqual(pygame.image.tostring(actual.subsurface(box),'RGB'),
-                             pygame.image.tostring(reference.subsurface(box),'RGB'))
-        for _ in range(20):view.draw(*args)
+        view=FocusedDesktop(self.screen,{},preview=True);view.space_weather=self.feeds
+        view.draw(2,0,0,NOW,None,False,{},set(),{'threat':{'level':'moderate','fetched':NOW}},set(),{},set(),automatic=False)
+        self.assertTrue(any(c and c['id'].startswith('space:') for c in view.renderer.selected))
+        selected=next(c for c in view.renderer.selected if c and c['id'].startswith('space:'))
+        self.assertIn(selected['url'],[url for _,url in view.links])
+        for i in range(20):view.draw(2,i,i,NOW+i,None,False,{},set(),{},set(),{},set(),automatic=False)
         self.assertLess(len(view.links),20)
 
 

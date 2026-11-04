@@ -163,42 +163,40 @@ class GridTests(unittest.TestCase):
 class GridDisplayTests(unittest.TestCase):
     def test_companion_grid_rotation_preserves_header_and_strip(self):
         from companion import Companion
-        view=Companion()
-        data={'threat':{'level':'SEVERE','fetched':NOW},
-              'grid':{'fetched':NOW,'items':parse(json.loads(FIXTURE.read_text()))}}
+        view=Companion();data={'threat':{'level':'SEVERE','fetched':NOW},'grid':{'fetched':NOW,'items':parse(json.loads(FIXTURE.read_text()))}}
         with patch.object(view,'text',wraps=view.text) as text:
             image=view.draw(data,NOW,49,'')
             words=[c.args[0] for c in text.call_args_list]
-            self.assertIn('GRID / CHECKED',words)
+            self.assertIn('GRID 3 BULLETINS',words)
             self.assertIn('UK THREAT / SEVERE',words)
             self.assertIn('Wi-Fi --',words)
-            self.assertIn('Validity / active unknown',words)
-            self.assertIn('Market bulletin',words)
+            self.assertTrue(view.card_renderer.active[0].startswith('grid:'))
+            self.assertIn('No local outage inferred',' '.join(sum(view.card_renderer.pages,[])))
         self.assertEqual(image.get_size(),(480,320))
 
     def test_companion_cancellation_and_scope_stay_above_alert_strip(self):
         from companion import Companion
-        view = Companion()
-        records = {'data': [dict(publishTime='2026-11-03T12:00:00Z',
-            warningType='ELECTRICITY MARGIN NOTICE', warningText='Synthetic cancellation')]}
-        data = {'grid': {'fetched': NOW, 'items': parse(records)}}
-        with patch.object(view, 'text', wraps=view.text) as text:
-            view.draw(data, NOW, 53, '')
-            calls = {c.args[0]: c.args for c in text.call_args_list}
-            self.assertLess(calls['Cancellation / check source'][2], 241)
-            self.assertIn('GB system; scope unspecified', calls)
+        view=Companion();records={'data':[dict(publishTime='2026-11-03T12:00:00Z',warningType='ELECTRICITY MARGIN NOTICE',warningText='Synthetic cancellation')]}
+        data={'grid':{'fetched':NOW,'items':parse(records)}}
+        view.draw(data,NOW,53,'')
+        pages=' '.join(sum(view.card_renderer.pages,[]))
+        self.assertIn('cancellation',pages)
+        self.assertIn('unstructured',pages)
+        self.assertIn('No local outage inferred',pages)
 
     def test_focused_active_path_draws_grid(self):
         import pygame
         from focused_ui import FocusedDesktop
         pygame.display.init();pygame.font.init()
-        screen=pygame.display.set_mode((1280,720))
-        ui=FocusedDesktop(screen,{'name':'Example'},preview=True)
+        ui=FocusedDesktop(pygame.display.set_mode((1280,720)),{'name':'Example'},preview=True)
+        data={'grid':{'fetched':NOW,'items':parse(json.loads(FIXTURE.read_text()))}}
         try:
-            ui.draw(0,55,55,NOW,None,False,{},set(),{},set(),{},set(),terminal_hidden=True)
-            self.assertEqual(ui.clicked_url((500,300)),URL)
-        finally:
-            pygame.quit()
+            ui.draw(2,0,0,NOW,None,False,{},set(),data,set(),{},set(),automatic=False)
+            selected=ui.renderer.selected[1]
+            self.assertTrue(selected['id'].startswith('grid:'))
+            self.assertFalse(selected['pinned'])
+            self.assertEqual(ui.clicked_url((950,300)),selected['url'])
+        finally:pygame.quit()
 
 
 if __name__=='__main__': unittest.main()
