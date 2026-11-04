@@ -1,0 +1,42 @@
+[
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 10:00:00.000",
+    "message": "Space Weather Message Code: WARK05\r\nSerial Number: 1\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nWARNING: Geomagnetic K-index of 5 expected\nValid From: 2026 Nov 04 1000 UTC\nValid To: 2026 Nov 04 1300 UTC\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  },
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 11:00:00.000",
+    "message": "Space Weather Message Code: WARK05\r\nSerial Number: 2\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nEXTENDED WARNING: Geomagnetic K-index of 5 expected\nExtension to Serial Number: 1\nValid From: 2026 Nov 04 1000 UTC\nNow Valid Until: 2026 Nov 04 1500 UTC\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  },
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 11:30:00.000",
+    "message": "Space Weather Message Code: WARK05\r\nSerial Number: 3\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nCANCEL WARNING: Geomagnetic K-index of 5 expected\nCancel Serial Number: 2\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  },
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 10:00:00.000",
+    "message": "Space Weather Message Code: WARK05\r\nSerial Number: 4\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nTEST WARNING: Synthetic warning\nValid From: 2026 Nov 04 1000 UTC\nValid To: 2026 Nov 05 1300 UTC\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  },
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 10:00:00.000",
+    "message": "Space Weather Message Code: ALTK05\r\nSerial Number: 5\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nALERT: Geomagnetic K-index of 5\nThreshold Reached: 2026 Nov 04 1100 UTC\nActive Warning: YES\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  },
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 10:00:00.000",
+    "message": "Space Weather Message Code: WARK05\r\nSerial Number: 6\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nWARNING: Unknown validity\n\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  },
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 10:00:00.000",
+    "message": "Space Weather Message Code: WARK05\r\nSerial Number: 7\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nWARNING: Expired\nValid From: 2026 Nov 03 1000 UTC\nValid To: 2026 Nov 03 1300 UTC\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  },
+  {
+    "product_id": "K05W",
+    "issue_datetime": "2026-11-04 10:00:00.000",
+    "message": "Space Weather Message Code: WARK05\r\nSerial Number: 8\r\nIssue Time: 2026 Nov 04 1000 UTC\r\n\r\nWARNING: Upcoming\nValid From: 2026 Nov 05 1000 UTC\nValid To: 2026 Nov 05 1300 UTC\nNOAA Scale: G1 - Minor\nPotential Impacts: Area primarily poleward of 60 degrees Geomagnetic Latitude."
+  }
+]

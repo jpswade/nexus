@@ -1,3 +1,5 @@
+from space_weather import SpaceWeather, LINKS as SPACE_LINKS
+from space_weather_ui import SpaceWeatherPanel
 from network_activity import Activity, ActivityPanel
 """Calm, original-style NEXUS: stable sidebars and one central subject."""
 import datetime as dt
@@ -24,6 +26,9 @@ class FocusedDesktop:
         self.network_activity=Activity()
         self.network_panel=ActivityPanel()
         if not preview:self.network_activity.start()
+        self.space_weather=SpaceWeather()
+        self.space_panel=SpaceWeatherPanel(self.space_weather)
+        if not preview:self.space_weather.start()
         self.preview=preview
         self.screen=screen
         self.width,self.height=screen.get_size()
@@ -289,7 +294,7 @@ class FocusedDesktop:
             else:self.text('Watching for source changes · routine refreshes stay quiet',28,676,12,DIM)
             self.text('1–4 views  A auto  T brief  O source  F5 home  F6 mode',1252,676,11,DIM,right=True)
         self.target=self.screen;self.target.blit(self.static,(0,0))
-        if workspace in (0,3) and not(profile=='technical' and workspace==0):
+        if workspace in (0,3) and not(profile=='technical' and workspace==0) and not(workspace==3 and age%60>=30):
             tick=int(seconds*3)
             key=(workspace,tick)
             if self.visual_tick!=key:
@@ -316,6 +321,14 @@ class FocusedDesktop:
             self.text('DNS: '+('RESOLVING' if dns is True else 'CHECK FAILED' if dns is False else 'CHECKING'),350,562,16,TEAL if dns else DIM)
             self.text('Traffic is this Pi only / no device tracking',350,602,13,DIM)
             self.text('Wi-Fi strength is not a person or movement detector',350,627,12,DIM)
+        # Infrastructure shares the world-view slot; sidebars stay persistent.
+        if workspace==3 and age%60>=30:
+            panel=self.space_panel.draw((580,537),now,age)
+            panel=pygame.transform.smoothscale(panel,(round(580*self.scale),round(537*self.scale)))
+            self.target.blit(panel,self.point(330,105))
+            source=('scales','met','alerts')[int(age//8)%3]
+            self.links=[entry for entry in self.links if entry[0]!=(330,105,580,537)]
+            self.register((330,105,580,537),SPACE_LINKS[source],True)
         show=manual_terminal or (not terminal_hidden and automatic_brief(workspace,age,self.changes,now))
         fresh=show and not self.terminal_visible
         self.terminal_visible=show
