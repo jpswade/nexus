@@ -71,7 +71,7 @@ def build_cards(context, now):
         if severity in ('warning', 'critical', 'advisory') and end is None:
             body.append('Validity end not established; check source.')
         words = len((' '.join([title] + body)).split())
-        duration = 0 if summary or ended and group == 'situation' else max(12, math.ceil(words / 2.5) + 4)
+        duration = 0 if summary or ended and group == 'situation' else max(30, math.ceil(words / 2) + 6)
         cards[key] = dict(id=key, group=group, title=str(title), body=body,
             source=source, url=url or '', published=_stamp(row.get('published', row.get('issued', row.get('updated')))),
             checked=checked, valid_until=end, state=state, severity=severity,
@@ -232,8 +232,13 @@ class Rotation:
         self._group = None
         self._active = None
         self._until = 0
+        self._duration = 0
         self._last_now = None
         self._queue = []
+
+    def timing(self, now):
+        """Remaining and total seconds for this visit, unaffected by feed refreshes."""
+        return (max(0, self._until-now), self._duration) if self._active else (0, 0)
 
     def select(self, cards, now, group=None):
         eligible = {c['id']: c for c in cards if c['duration'] > 0
@@ -253,5 +258,6 @@ class Rotation:
             return None
         self._active = self._queue.pop(0)
         card = eligible[self._active]
-        self._until = now + card['duration']
+        self._duration = card['duration']
+        self._until = now + self._duration
         return card
