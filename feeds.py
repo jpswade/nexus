@@ -1,4 +1,5 @@
 """Public planetary data feeds. Fetching and parsing stay outside the render loop."""
+from source_history import History
 import datetime
 import json
 import math
@@ -105,6 +106,7 @@ class PlanetFeeds:
 
     def _worker(self, name):
         while True:
+            attempted = time.time()
             try:
                 request = urllib.request.Request(self.urls[name], headers={'User-Agent': 'NexusDashboard/1.0', 'Accept': 'application/json'})
                 with urllib.request.urlopen(request, timeout=20) as response:
@@ -119,11 +121,13 @@ class PlanetFeeds:
                     temporary.replace(self.directory / f'{name}.json')
                 except OSError:
                     pass
+                History(self.directory).record(name, attempted, result)
                 print(f'{name}: feed updated', flush=True)
                 delay = self.intervals[name]
             except Exception as error:
                 with self.lock:
                     self.errors.add(name)
-                print(f'{name}: feed unavailable ({error})', flush=True)
+                History(self.directory).record(name, attempted)
+                print(f'{name}: feed unavailable; retaining cached data', flush=True)
                 delay = max(60, self.intervals[name])
             time.sleep(delay)

@@ -1,3 +1,4 @@
+from source_history import History
 """Conservative GOV.UK Emergency Alerts HTML adapter (standard library only).
 
 Broadcast end is not hazard expiry. Never geocode free-text areas or treat a
@@ -213,6 +214,7 @@ class EmergencyAlerts:
                     # Do not leak request URLs/headers/errors into logs or cache.
                     result = dict(old, version=1, checked=now, failed=True,
                                   items=old.get('items', []))
+                History(self.directory).record('gov', now, result if not result['failed'] else None)
                 self.data = result
                 with tempfile.NamedTemporaryFile(mode='w', dir=self.directory, delete=False) as out:
                     temporary = Path(out.name)

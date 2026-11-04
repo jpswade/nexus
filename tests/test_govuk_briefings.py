@@ -138,14 +138,14 @@ class DisplayTests(unittest.TestCase):
         data={'govuk':sample,'threat':{'level':'SEVERE','fetched':NOW}}
         view=Companion()
         with patch.object(view,'text',wraps=view.text) as text:
-            image=view.draw(data,NOW,27,'')
+            image=view.draw(data,NOW,43,'')
             words=[c.args[0] for c in text.call_args_list]
             self.assertIn('GOV.UK / CHECKED',words)
             self.assertIn('UK THREAT / SEVERE',words)
             self.assertIn('Wi-Fi --',words)
         self.assertEqual(image.get_size(),(480,320))
         with patch.object(view,'text',wraps=view.text) as text:
-            view.draw(data,NOW,27,'',{'checked':NOW,'offline':True})
+            view.draw(data,NOW,43,'',{'checked':NOW,'offline':True})
             self.assertNotIn('GOV.UK / CHECKED',[c.args[0] for c in text.call_args_list])
         ui=FocusedDesktop(pygame.display.set_mode((1280,720)),{'name':'Example'},preview=True)
         try:

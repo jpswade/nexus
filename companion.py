@@ -1,3 +1,7 @@
+from source_details import HEADERS, describe
+from terrorism import threat_details
+from camera_motion import MotionReader
+from camera_eye import draw as draw_camera_eye
 from status_summary import live_checks
 """480x320 Pygame companion, written directly to the ILI9486 framebuffer."""
 import argparse
@@ -88,6 +92,8 @@ class Companion:
         self.activity_panel = ActivityPanel()
         self.activity = None
         self.emergency_data = {}
+        self.source_records = {}
+        self.motion = MotionReader()
         self.space_weather = SpaceWeather()
         self.space_panel = SpaceWeatherPanel(self.space_weather)
         self.radar = None
@@ -174,7 +180,7 @@ class Companion:
             pygame.draw.rect(self.surface,PALETTE['background'],(rect[0]+rect[2]-width,rect[1],width,rect[3]))
             pygame.draw.line(self.surface,PALETTE['accent'],(rect[0]+rect[2]-width,rect[1]),(rect[0]+rect[2]-width,rect[1]+rect[3]-1),2)
 
-    def draw(self, data, now, age, scope, network=None):
+    def draw(self, data, now, age, scope, network=None, errors=()):
         self.surface.fill(PALETTE['background'])
         net=network or {}
         checked=net.get('checked')
@@ -188,26 +194,36 @@ class Companion:
             self.text('REPEATED PROBE FAILURES',66,210,22,'muted',350)
             self.text('RETRYING',180,254,20,colour,160)
             return self.surface
-        alerts=self.alerts.update(data,(),now)
+        failed_sources={name for name,record in self.source_records.items() if record.get('failed')}
+        errors=set(errors)|failed_sources
+        alerts=self.alerts.update(data,errors,now)
         # The whole masthead is the assessment, with a single compact clock.
         threat=data.get('threat');level=threat['level'].upper() if threat else 'UNKNOWN'
-        stale=not threat or now-threat['fetched']>MAX_AGES['threat']
+        stale=not threat or 'threat' in errors or now-threat['fetched']>MAX_AGES['threat']
+        disagree=bool(threat and threat.get('disagreement'))
         fill={'LOW':'#70b99c','MODERATE':'#a5cd65','SUBSTANTIAL':'#ead64c',
               'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level,'#203640')
+        if disagree: fill='#e6a23c'
         ink='text' if level=='UNKNOWN' else '#081116'
         pygame.draw.rect(self.surface,fill,(0,0,480,66))
-        self.text('UK THREAT / '+level+(' / STALE' if stale else ''),14,3,18,ink,345)
+        self.text('UK THREAT / '+('SOURCES DIFFER' if disagree else level)+(' / STALE' if stale else ''),14,3,18,ink,345)
         self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'),382,2,25,ink,94)
-        checks=live_checks(data,self.emergency_data,now,alerts=alerts)
-        for i,(name,value,state) in enumerate(checks[:2]+checks[3:]):
-            x=8+i*158
-            pygame.draw.rect(self.surface,PALETTE['panel'],(x,29,154,34))
-            colour='#e6a23c' if state in ('alert','stale') else 'accent' if state=='ok' else 'muted'
-            self.text(name,x+5,30,10,'muted',144)
-            self.text(value,x+5,42,16,colour,144)
+        source,checked=threat_details(threat,now,'threat' in errors)
+        if disagree:
+            self.text(source,14,29,13,ink,458)
+            self.text(checked,14,47,12,ink,458)
+        else:
+            checks=live_checks(data,self.emergency_data,now,errors,alerts)
+            for i,(name,value,state) in enumerate(checks[:2]+checks[3:]):
+                x=8+i*158
+                pygame.draw.rect(self.surface,PALETTE['panel'],(x,29,154,34))
+                colour='#e6a23c' if state in ('alert','stale') else 'accent' if state=='ok' else 'muted'
+                self.text(name,x+5,30,10,'muted',144)
+                self.text(value,x+5,42,16,colour,144)
+
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
-        weather_stale=not weather or now-weather['fetched']>MAX_AGES['weather']
+        weather_stale='weather' in failed_sources or not weather or now-weather['fetched']>MAX_AGES['weather']
         label=weather_label(warning,weather) if warning else None
         wf,wi=self.weather_style(label)
         pygame.draw.rect(self.surface,wf or PALETTE['panel'],(14,70,458,34))
@@ -221,13 +237,25 @@ class Companion:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
         for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar','space'),0),
-                                      ('news',247,('ncsc','news','govuk'),6)):
+                                      ('news',247,('ncsc','news','health','govuk'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
             if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
                 source='news'
             if source=='govuk':
                 draw_govuk(self,data.get('govuk'),now,phase,x)
+                continue
+            if source=='health':
+                selected=HEADERS[int(phase//48)%len(HEADERS)]
+                name,url,caveat,state,attempted,successful,events=describe(
+                    selected,self.source_records,data,self.emergency_data,now)
+                self.box((x,110,225,148),name,ink='accent')
+                self.text(state,x+9,137,22,'accent',207)
+                self.text(attempted,x+9,169,12,'muted',207)
+                self.text(successful,x+9,190,12,'muted',207)
+                changed=next((e for e in reversed(events) if e['kind']=='changed'),None)
+                self.text('Changed '+dt.datetime.fromtimestamp(changed['time']).strftime('%d %b %H:%M') if changed else 'No retained changes',x+9,212,14,'text',207)
+                self.text('Feed health / not Pi link',x+9,230,10,'muted',207)
                 continue
             if source=='space':
                 self.surface.blit(self.space_panel.draw((225,148),now,age),(x,110))
@@ -337,6 +365,7 @@ class Companion:
             self.text('Wi-Fi unavailable',track.left+5,299,12,'muted',track.width-10)
         self.surface.set_clip(previous_clip)
         draw_emergency(self.surface,self.emergency_data,now,age)
+        draw_camera_eye(self.surface,self.motion.snapshot(now),now,(366,15),8)
         return self.surface
 
 
@@ -402,10 +431,12 @@ def main():
             if age-refreshed >= 10:
                 # Read the main dashboard's cache, without duplicate network requests.
                 feeds = PreparednessFeeds(cache, config)
-                data, _ = feeds.snapshot()
+                data, errors = feeds.snapshot()
+                from source_history import History
+                view.source_records={name: History(feeds.directory if name in ('weather','floods') else cache).read(name,time.time()) for name in HEADERS}
                 refreshed = age
             view.emergency_data = emergency.snapshot()
-            surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot())
+            surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot(), errors)
             if rotation == 180:
                 surface = pygame.transform.rotate(surface, 180)
             if args.snapshot:

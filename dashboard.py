@@ -162,7 +162,9 @@ while running:
         elif event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
             x=(event.pos[0]-ui.offset[0])/ui.scale
             y=(event.pos[1]-ui.offset[1])/ui.scale
-            if 1010<=x<1150 and 20<=y<=57:
+            if ui.click_detail((x,y)):
+                pass
+            elif 1010<=x<1150 and 20<=y<=57:
                 cycle.select(min(3,max(0,int((x-1010)//34))),input_time)
                 manual_terminal=False;terminal_hidden=False
             else:open_source(ui.clicked_url((x,y)))
@@ -201,7 +203,12 @@ while running:
     planet_data,planet_errors=planet.snapshot()
     security_data,security_errors=security.snapshot()
     uk_data,uk_errors=preparedness.snapshot()
+    now=time.time()
     ui.emergency_data = emergency.snapshot()
+    if not hasattr(ui,'history_checked') or now-ui.history_checked>=10:
+        from source_history import History
+        ui.source_records={name: History(preparedness.directory if name in ('weather','floods') else preparedness.grid.path.parent).read(name,now) for name in ('gov','grid','weather','floods')}
+        ui.history_checked=now
     ui.draw(workspace,age,seconds,time.time(),weather,weather_failed,
             security_data,security_errors,uk_data,uk_errors,planet_data,planet_errors,
             profile=ARGS.profile,automatic=cycle.automatic,paused=paused,

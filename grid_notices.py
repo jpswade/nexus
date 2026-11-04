@@ -3,6 +3,7 @@
 The official schema has no event ID, revision, scope, validity or active flag.
 Never infer an active incident (or match a cancellation) from arbitrary prose.
 """
+from source_history import History
 import datetime as dt
 import hashlib
 import json
@@ -58,6 +59,23 @@ def parse(raw):
     return sorted(rows.values(), key=lambda row: (row['published'], row['id']), reverse=True)
 
 
+# Topic labels only, never severity or lifecycle state. Exact source type names;
+# see docs/grid-notices.md for the official evidence and deliberately narrow map.
+NOTICE_TOPICS = {
+    'SO-SO TRADES': ('Market bulletin', 'Operator trading / settlement prices'),
+    'IT SYSTEMS OUTAGE': ('IT service bulletin', 'Industry IT services; not a power-cut notice'),
+    'ELECTRICITY MARGIN NOTICE': ('Margin notice', 'Market request for additional spare capacity'),
+    'HIGH RISK OF DEMAND REDUCTION': ('Demand-control notice', 'Operational warning; check source instructions'),
+    'DEMAND CONTROL IMMINENT': ('Demand-control notice', 'Operational warning; check source instructions'),
+}
+
+
+def classify(kind):
+    """Describe the topic of a known type without interpreting arbitrary prose."""
+    return NOTICE_TOPICS.get(' '.join(kind.upper().split()),
+                             ('Unclassified bulletin', 'Unknown type; check source'))
+
+
 def persistent_alerts(sample, now):
     """No current SYSWARN row can prove active + relevant + uncancelled.
 
@@ -84,8 +102,9 @@ def card(sample, now, phase=0):
     title = row['title'] if row else ('No notices returned in 7-day window' if state == 'CHECKED'
                                      else 'Grid notices '+state.lower())
     detail = 'Source text mentions cancellation; check source' if row and re.search(
-        r'\b(cancelled|canceled|cancellation|withdrawn)\b', row['text'], re.I) else 'Bulletin / active status unconfirmed'
-    return dict(state=state, title=title, detail=detail,
+        r'\b(cancelled|canceled|cancellation|withdrawn)\b', row['title']+' '+row['text'], re.I) else 'Bulletin / active status unconfirmed'
+    category, meaning = classify(row['title']) if row else ('No bulletin', 'No bulletin to classify')
+    return dict(state=state, title=title, detail=detail, category=category, meaning=meaning,
                 scope='GB system / affected scope unspecified',
                 issued='Issued '+utc(row['published']) if row else 'Issue time unavailable',
                 validity='Validity not structured / check source',
@@ -155,6 +174,7 @@ class GridNotices:
                           fetched=None, raw={'data': []}, items=[]),
                           failed=True, attempted=now)
             ok = False
+        History(self.path.parent).record('grid', now, result if ok else None)
         with self.lock:
             self.sample = result
         temporary = None
