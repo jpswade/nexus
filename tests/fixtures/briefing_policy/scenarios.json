@@ -1,0 +1,16 @@
+{
+  "now": 1793793600,
+  "scenarios": {
+    "quiet": {"uk": {"weather": {"fetched": 1793793600, "items": []}, "floods": {"fetched": 1793793600, "items": []}}, "emergency": {"fetched": 1793793600, "items": []}},
+    "new_warning": {"uk": {"weather": {"fetched": 1793793600, "items": [{"title": "Amber warning: synthetic rain", "colour": "amber", "url": "https://example.org/warning", "valid_until": 1793797200}]}}},
+    "stale_warning": {"uk": {"weather": {"fetched": 1793793500, "failed": true, "items": [{"title": "Amber warning: synthetic rain", "colour": "amber", "url": "https://example.org/warning"}]}}},
+    "expiry": {"uk": {"weather": {"fetched": 1793793600, "items": [{"title": "Amber warning: synthetic rain", "colour": "amber", "url": "https://example.org/warning", "valid_until": 1793793600}]}}},
+    "conflicting_threat": {"uk": {"threat": {"fetched": 1793793600, "level": "SUBSTANTIAL", "source_name": "GOV.UK", "disagreement": true, "observations": {"GOV.UK": {"level": "SUBSTANTIAL"}, "MI5": {"level": "SEVERE"}}}}},
+    "failed_feed": {"source_records": {"ncsc": {"attempted": 1793793600, "failed": true}}},
+    "long_text": {"uk": {"grid": {"fetched": 1793793600, "items": [{"id": "synthetic-grid", "title": "Synthetic grid bulletin", "published": 1793793500, "text": "This synthetic bulletin preserves the complete source wording for readable display. The source provides no structured cancellation or validity field. Local outage status is not assessed. The reader should have time to read this evidence and check its source before the next card appears. This sentence extends the synthetic fixture so dwell exceeds the minimum without introducing any real incident or operational information."}]}}},
+    "offline": {"network": {"checked": 1793793600, "label": "WAN CHECK", "offline": true, "latency": null}},
+    "recovery": {"network": {"checked": 1793793600, "label": "CONNECTED", "offline": false, "latency": 8}},
+    "camera_loss": {"motion": {"checked": 1793793600, "online": false, "state": "unavailable"}},
+    "camera_movement": {"motion": {"checked": 1793793600, "online": true, "state": "activity", "last_motion": 1793793599}}
+  }
+}
