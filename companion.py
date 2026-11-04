@@ -203,8 +203,18 @@ class Companion:
         self.text('UK THREAT / '+('SOURCES DIFFER' if disagree else level)+(' / STALE' if stale else ''),14,3,18,ink,345)
         self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'),382,2,25,ink,94)
         source,checked=threat_details(threat,now,'threat' in errors)
-        self.text(source,14,29,13,ink,458)
-        self.text(checked,14,47,12,ink,458)
+        if disagree:
+            self.text(source,14,29,13,ink,458)
+            self.text(checked,14,47,12,ink,458)
+        else:
+            checks=live_checks(data,self.emergency_data,now,errors,alerts)
+            for i,(name,value,state) in enumerate(checks[:2]+checks[3:]):
+                x=8+i*158
+                pygame.draw.rect(self.surface,PALETTE['panel'],(x,29,154,34))
+                colour='#e6a23c' if state in ('alert','stale') else 'accent' if state=='ok' else 'muted'
+                self.text(name,x+5,30,10,'muted',144)
+                self.text(value,x+5,42,16,colour,144)
+
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
         weather_stale=not weather or now-weather['fetched']>MAX_AGES['weather']
