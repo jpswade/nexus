@@ -91,18 +91,19 @@ class ScifiMotionTests(unittest.TestCase):
         view=Companion()
         data={'weather':{'fetched':10000,'items':[{'title':'Yellow wind warning','colour':'yellow'}]}}
         surface=view.draw(data,10000,3,'')
-        pixel=surface.get_at((310,101))
+        pixel=surface.get_at((310,90))
         self.assertGreater(pixel.r,200)
         self.assertGreater(pixel.g,180)
         self.assertLess(pixel.b,100)
 
     def test_refresh_reveals_briefing_without_hiding_status_or_ping(self):
         view=Companion()
+        view.motion.snapshot=lambda now: {}
         data={'weather':{'fetched':10000,'items':[]},'threat':{'fetched':10000,'level':'severe'}}
         view.draw(data,10000,3,'')
         data['weather']['fetched']=10001
         surface=view.draw(data,10001,4,'')
-        self.assertEqual(view.tiles['local'][1],4)
+        self.assertEqual(view.card_renderer.pages, [])
         self.assertGreater(surface.get_at((2,25)).r,180)
 
     def test_ping_values_share_bottom_bar_and_no_connection_box(self):
@@ -153,16 +154,13 @@ class StatusPanelsTests(unittest.TestCase):
                 view.draw({'weather':sample},10000,3,'')
                 self.assertIn(expected,[c.args[0] for c in text.call_args_list])
 
-    def test_two_channels_rotate_independently(self):
+    def test_missing_policy_is_explicit_without_local_selection(self):
         view=Companion()
-        view.draw({},10000,3,'')
-        self.assertEqual(view.tiles['local'][0][0],'weather')
-        self.assertEqual(view.tiles['news'][0][0],'news')
-        view.draw({},10000,12,'')
-        self.assertEqual(view.tiles['local'][0][0],'weather')
-        self.assertEqual(view.tiles['news'][0][0],'news')
-        view.draw({},10000,18,'')
-        self.assertEqual(view.tiles['local'][0][0],'floods')
+        view.policy=None
+        with patch.object(view,'text',wraps=view.text) as text:
+            view.draw({},10000,18,'')
+        self.assertIn('Briefing policy unavailable',[c.args[0] for c in text.call_args_list])
+        self.assertEqual(view.card_renderer.pages, [])
 
 class PersistentWifiTests(unittest.TestCase):
     def test_signal_reading_survives_rotations_and_stale_data_is_hidden(self):

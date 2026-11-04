@@ -144,7 +144,6 @@ class LayoutTests(unittest.TestCase):
         for rect in ((0, 0, 480, 29), (0, 266, 480, 54)):
             self.assertEqual(pygame.image.tostring(before.subsurface(rect), 'RGB'),
                              pygame.image.tostring(after.subsurface(rect), 'RGB'))
-        pygame.image.save(after, '/tmp/nexus-emergency-alerts/companion-emergency.png')
 
     def test_desktop_emergency_above_all_workspaces_and_terminal(self):
         from focused_ui import FocusedDesktop
@@ -155,7 +154,6 @@ class LayoutTests(unittest.TestCase):
                 ui.draw(workspace,48,48,NOW,None,False,{},set(),{},set(),{},set(),profile=profile,manual_terminal=True)
                 self.assertEqual(ui.clicked_url((500,300)), URL)
                 self.assertLess(len(ui.links), 20)
-        pygame.image.save(ui.screen, '/tmp/nexus-emergency-alerts/desktop-emergency.png')
 
 
 if __name__ == '__main__': unittest.main()

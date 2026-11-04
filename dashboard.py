@@ -4,7 +4,7 @@ import argparse
 arguments = argparse.ArgumentParser(description="Nexus desktop dashboard")
 arguments.add_argument('--profile', choices=('uk', 'technical'), default=os.environ.get('NEXUS_PROFILE', 'uk'))
 arguments.add_argument('--snapshot', help='Render one cached-data frame to a PNG without opening the monitor')
-arguments.add_argument('--workspace', type=int, choices=range(1,5), default=1)
+arguments.add_argument('--workspace', type=int, choices=range(1,6), default=1)
 arguments.add_argument('--age', type=float, default=0, help='Workspace animation age for snapshots')
 ARGS = arguments.parse_args()
 os.environ['NEXUS_PROFILE'] = ARGS.profile
@@ -97,8 +97,7 @@ from emergency_alerts import EmergencyAlerts
 from feeds import PlanetFeeds
 from security import SecurityFeeds
 from preparedness import PreparednessFeeds
-from workspaces import WorkspaceCycle
-from focused_state import UK_NAMES
+from desktop_renderer import NAMES
 from focused_ui import FocusedDesktop
 from terminal_theme import switch_view
 
@@ -121,20 +120,15 @@ else:
         screen = pygame.display.set_mode((1280,720),pygame.FULLSCREEN | pygame.SCALED,vsync=1)
     except pygame.error:
         screen = pygame.display.set_mode((0,0),pygame.FULLSCREEN)
-pygame.display.set_caption('NEXUS / Focused observatory')
+pygame.display.set_caption('NEXUS / Priority briefing')
 pygame.mouse.set_visible(True)
 ui = FocusedDesktop(screen,LOCATION,preview=bool(ARGS.snapshot))
-cycle = WorkspaceCycle(duration=60,initial=ARGS.workspace-1)
-if ARGS.snapshot:cycle.automatic=False
-names = UK_NAMES if ARGS.profile=='uk' else ('Security overview','PHP watch','Known exploited','World view')
-manual_terminal=False
-terminal_hidden=False
+workspace=ARGS.workspace-1
+automatic=not bool(ARGS.snapshot)
+names=NAMES
 last_workspace=None
-paused=False
 running=True
 start=time.monotonic()
-frozen=0.
-last_pause=0.
 clock=pygame.time.Clock()
 frame=0
 
@@ -154,8 +148,6 @@ signal.signal(signal.SIGTERM,stop)
 signal.signal(signal.SIGINT,stop)
 print(f'NEXUS focused desktop ready: {screen.get_size()}, target=12fps',flush=True)
 while running:
-    input_time=(last_pause if paused else time.monotonic())-start-frozen
-    if ARGS.snapshot:input_time=ARGS.age
     for event in pygame.event.get():
         if event.type==pygame.QUIT or (event.type==pygame.KEYDOWN and event.key==pygame.K_ESCAPE):
             running=False
@@ -164,28 +156,20 @@ while running:
             y=(event.pos[1]-ui.offset[1])/ui.scale
             if ui.click_detail((x,y)):
                 pass
-            elif 1010<=x<1150 and 20<=y<=57:
-                cycle.select(min(3,max(0,int((x-1010)//34))),input_time)
-                manual_terminal=False;terminal_hidden=False
             else:open_source(ui.clicked_url((x,y)))
+        elif event.type==pygame.MOUSEWHEEL:
+            ui.scroll_detail(-event.y)
         elif event.type==pygame.KEYDOWN:
-            if event.key==pygame.K_SPACE:
-                paused=not paused
-                if paused:last_pause=time.monotonic()
-                else:frozen+=time.monotonic()-last_pause
-            elif pygame.K_1<=event.key<=pygame.K_4:
-                cycle.select(event.key-pygame.K_1,input_time)
-                manual_terminal=False;terminal_hidden=False
+            if pygame.K_1<=event.key<=pygame.K_5:
+                workspace=event.key-pygame.K_1
+                automatic=False
             elif event.key in (pygame.K_LEFT,pygame.K_RIGHT):
-                cycle.step(1 if event.key==pygame.K_RIGHT else -1,input_time)
-                manual_terminal=False;terminal_hidden=False
+                workspace=(workspace+(1 if event.key==pygame.K_RIGHT else -1))%5
+                automatic=False
             elif event.key==pygame.K_a:
-                cycle.automatic=not cycle.automatic
-                cycle.since=input_time
-            elif event.key==pygame.K_t:
-                currently_visible=ui.terminal_visible
-                manual_terminal=not currently_visible
-                terminal_hidden=currently_visible
+                automatic=not automatic
+            elif event.key in (pygame.K_PAGEUP,pygame.K_PAGEDOWN):
+                ui.scroll_detail(-1 if event.key==pygame.K_PAGEUP else 1)
             elif event.key==pygame.K_o:
                 open_source(ui.active_url)
             elif event.key==pygame.K_F5:
@@ -193,11 +177,10 @@ while running:
             elif event.key==pygame.K_F6:
                 os.environ['NEXUS_PROFILE']='technical' if ARGS.profile=='uk' else 'uk'
                 pygame.quit();switch_view('nexus')
-    seconds=(last_pause if paused else time.monotonic())-start-frozen
+    seconds=time.monotonic()-start
     if ARGS.snapshot:seconds=ARGS.age
-    workspace,age=cycle.tick(seconds)
+    age=seconds
     if workspace!=last_workspace:
-        manual_terminal=False;terminal_hidden=False
         last_workspace=workspace
         print(f'Workspace {workspace+1}: {names[workspace]}',flush=True)
     planet_data,planet_errors=planet.snapshot()
@@ -211,8 +194,7 @@ while running:
         ui.history_checked=now
     ui.draw(workspace,age,seconds,time.time(),weather,weather_failed,
             security_data,security_errors,uk_data,uk_errors,planet_data,planet_errors,
-            profile=ARGS.profile,automatic=cycle.automatic,paused=paused,
-            manual_terminal=manual_terminal,terminal_hidden=terminal_hidden)
+            profile=ARGS.profile,automatic=automatic)
     if ARGS.snapshot:
         pygame.image.save(screen,ARGS.snapshot)
         running=False

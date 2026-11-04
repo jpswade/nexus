@@ -84,11 +84,12 @@ class DetailsTests(unittest.TestCase):
     def test_companion_health_does_not_hide_ping_or_offline(self):
         from companion import Companion
         view=Companion()
+        view.motion.snapshot=lambda now: {}
         with patch.object(view,'text',wraps=view.text) as text:
             view.draw({},10000,35,'')
             values=[c.args[0] for c in text.call_args_list]
-            self.assertIn('GOV.UK ALERTS',values)
-            self.assertIn('Feed health / not Pi link',values)
+            self.assertIn('GOV.UK NOT CHECKED',values)
+            self.assertIn('No priority item',values)
             self.assertIn('Wi-Fi --',values)
         with patch.object(view,'text',wraps=view.text) as text:
             view.draw({},10000,35,'',{'checked':10000,'offline':True})

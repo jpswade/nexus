@@ -91,39 +91,37 @@ class PersistentLayoutTests(unittest.TestCase):
     def test_php_link_and_retained_stale_warning_survive_every_workspace(self):
         now=1792940000
         php=advisory(now)
-        security={'php':{'items':[php],'fetched':now},'kev':{'items':[],'fetched':now}}
-        item={'title':'Amber warning of wind in a demo region','colour':'amber','url':'https://www.metoffice.gov.uk/','description':''}
+        security={'php':{'items':[php],'fetched':now}}
+        item={'title':'Amber warning','colour':'amber','url':'https://www.metoffice.gov.uk/','description':''}
         uk={'weather':{'items':[item],'fetched':now},'threat':{'level':'MODERATE','fetched':now}}
-        self.ui.draw(0,3,3,now,None,False,security,set(),uk,set(),{},set())
-        for workspace in range(4):
-            self.ui.draw(workspace,3,3,now+10000+workspace,None,False,security,{'php'},uk,{'weather'}, {},set())
-            urls=[url for box,url in self.ui.links]
-            self.assertIn(php['url'],urls)
-            self.assertIn(item['url'],urls)
-            self.assertTrue(any(row['stale'] for row in self.ui.alerts.sources.get('weather',[])))
-            # No source/card extends outside the desktop's usable area.
+        for workspace in range(5):
+            self.ui.draw(workspace,3,3,now+10000+workspace,None,False,security,{'php'},uk,{'weather'},{},set(),automatic=False)
+            primary=self.ui.renderer.selected[0]
+            self.assertEqual(primary['url'],item['url'])
+            self.assertEqual(primary['state'],'stale')
+            self.assertTrue(primary['pinned'])
             for (x,y,w,h),url in self.ui.links:
                 self.assertGreaterEqual(x,0);self.assertGreaterEqual(y,0)
                 self.assertLessEqual(x+w,1280);self.assertLessEqual(y+h,720)
+        self.ui.draw(1,3,3,now+10010,None,False,security,{'php'},uk,{'weather'},{},set(),automatic=False)
+        self.assertEqual(self.ui.renderer.selected[1]['url'],php['url'])
 
     def test_php_followup_notice_keeps_its_official_source_in_rotation(self):
-        now=1792940000
-        url='https://www.php.net/archive/2026.php#demo'
-        security={'php':{'items':[advisory(now)],'fetched':now},
-                  'phpnews':{'items':[{'title':'Demo configuration follow-up','published':now,
-                                      'cves':['CVE-DEMO-001'],'url':url}],'fetched':now}}
-        self.ui.draw(1,45,45,now,None,False,security,set(),{},set(),{},set())
-        self.assertEqual(self.ui.clicked_url((500,300)),url)
+        now=1792940000;url='https://www.php.net/archive/2026.php#demo'
+        security={'php':{'items':[advisory(now)],'fetched':now},'phpnews':{'items':[{'title':'Demo follow-up','published':now,'url':url}],'fetched':now}}
+        seen=set()
+        for t in range(0,180,15):
+            self.ui.draw(1,t,t,now+t,None,False,security,set(),{},set(),{},set(),automatic=False)
+            if self.ui.renderer.selected[1]:seen.add(self.ui.renderer.selected[1]['url'])
+        self.assertIn(url,seen)
         self.assertFalse(self.ui.terminal_visible)
 
     def test_terminal_never_covers_priority_or_weather_sidebars(self):
-        now=1792940000
-        security={'php':{'items':[advisory(now)],'fetched':now}}
-        self.ui.draw(0,48,48,now,None,False,security,set(),{},set(),{},set())
-        self.assertTrue(self.ui.terminal_visible)
-        self.ui.draw(0,55,55,now+7,None,False,security,set(),{},set(),{},set())
+        now=1792940000;security={'php':{'items':[advisory(now)],'fetched':now}}
+        self.ui.draw(1,48,48,now,None,False,security,set(),{},set(),{},set(),automatic=False)
         self.assertFalse(self.ui.terminal_visible)
-        self.assertEqual(self.ui.clicked_url((950,180)),'https://example.com/advisory')
+        self.assertEqual(self.ui.clicked_url((950,300)),'https://example.com/advisory')
+        self.assertIsNone(self.ui.renderer.selected[0])  # PHP no longer occupies permanent priority panel.
 
 
 if __name__=='__main__':unittest.main()
