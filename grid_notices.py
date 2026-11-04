@@ -3,6 +3,7 @@
 The official schema has no event ID, revision, scope, validity or active flag.
 Never infer an active incident (or match a cancellation) from arbitrary prose.
 """
+from source_history import History
 import datetime as dt
 import hashlib
 import json
@@ -155,6 +156,7 @@ class GridNotices:
                           fetched=None, raw={'data': []}, items=[]),
                           failed=True, attempted=now)
             ok = False
+        History(self.path.parent).record('grid', now, result if ok else None)
         with self.lock:
             self.sample = result
         temporary = None

@@ -1,3 +1,4 @@
+from source_details import HEADERS, describe
 from status_summary import live_checks
 from emergency_alerts_ui import desktop as draw_emergency
 from space_weather import SpaceWeather, LINKS as SPACE_LINKS
@@ -54,6 +55,8 @@ class FocusedDesktop:
         self.links=[]; self.active_url=LINKS['weather']
         self.brief_key=None; self.brief_text=''; self.brief_started=0
         self.terminal_visible=False
+        self.source_detail=None
+        self.source_records={}
 
     def point(self,x,y):
         return round(self.offset[0]+x*self.scale),round(self.offset[1]+y*self.scale)
@@ -106,6 +109,38 @@ class FocusedDesktop:
         for (rx,ry,w,h),url in reversed(self.links):
             if rx<=x<=rx+w and ry<=y<=ry+h:return url
         return None
+
+    def click_detail(self, point):
+        x,y=point
+        if 233<=x<1252 and 12<=y<=66:
+            source=HEADERS[min(3,int((x-233)//251))]
+            self.source_detail=None if self.source_detail==source else source
+            self.key=None
+            return True
+        if self.source_detail and 810<=x<=900 and 110<=y<=145:
+            self.source_detail=None
+            self.key=None
+            return True
+        return False
+
+    def source_panel(self, uk, now):
+        name,url,caveat,state,attempted,successful,events=describe(
+            self.source_detail,self.source_records,uk,self.emergency_data,now)
+        self.links=[entry for entry in self.links if not (330<=entry[0][0]<910)]
+        self.panel(330,105,580,537,'SOURCE DETAILS','CLOSE ×')
+        self.text(name,350,157,22,TEAL)
+        self.text(state+' / FEED HEALTH',350,194,16,AMBER if state!='CHECKED' else TEAL)
+        self.text(attempted,350,232,15,DIM)
+        self.text(successful,350,261,15,DIM)
+        self.wrap(caveat,350,304,530,16,DIM,lines=2)
+        self.text('RECENT CHECKS / UTC',350,373,12,TEAL)
+        for i,event in enumerate(reversed(events[-6:])):
+            stamp=dt.datetime.fromtimestamp(event['time'],dt.timezone.utc).strftime('%d %b %H:%M')
+            self.text(stamp+'  '+event['kind'].upper(),350,402+i*26,14,TEXT,True)
+        if not events:self.text('No local history recorded yet',350,402,15,DIM)
+        self.text('Feed failure does not mean the Pi is offline',350,570,12,DIM)
+        self.text('OPEN OFFICIAL SOURCE →',350,609,14,TEAL)
+        self.register((350,599,530,35),url,True)
 
     @staticmethod
     def status(name,data,errors,now,ages):
@@ -349,6 +384,7 @@ class FocusedDesktop:
         # Drop previous dynamic links; keep the persistent card above animated views.
         self.links=[entry for entry in self.links if not entry[1].startswith("https://www.gov.uk/alerts/")]
         draw_emergency(self,self.emergency_data,now,seconds)
+        if self.source_detail:self.source_panel(uk,now)
 
     @staticmethod
     def orbit_label(planet,errors,now):
