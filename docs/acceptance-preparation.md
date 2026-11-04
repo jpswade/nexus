@@ -1,9 +1,22 @@
 # Display acceptance preparation (#50)
 
-Status: preparation only, based on `7f74ef8` and parent plan #46.
-No combined redesigned display acceptance, Pi execution, deployment or hardware
-performance measurement has been performed. Issues #47, #48 and #49 must be
-integrated by the parent before those gates can pass. This PR stays draft.
+Status: the four implementation branches are integrated in PR #54. The preparation
+harness below is retained as a contract check. `acceptance.combined` exercises the
+real scheduler and both renderers against all 14 synthetic boundary scenarios;
+raw feed and policy integration is covered by the unit suite. Hardware rollout
+results are recorded in PR #54, separately from synthetic checks.
+
+```sh
+SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python -m acceptance.combined --out /tmp/nexus-acceptance
+```
+
+The integration also propagates source failures, retains stale warnings, skips
+summary-only empty cards, preserves enriched CVSS scores, deduplicates displayed
+content and packages every root runtime module. Tests use explicit camera fixtures
+and do not depend on a developer's local preview directories.
+
+The remaining sections describe the original acceptance checklist and rollback
+procedure; they are not a claim that preparation alone completes rollout.
 
 ## Reproduce locally
 
