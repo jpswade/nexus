@@ -35,11 +35,11 @@ class Layout(unittest.TestCase):
         from companion import Companion
         view = Companion(); view.space_panel = SpaceWeatherPanel(self.feeds)
         data = {'threat':{'level':'severe','fetched':NOW}}
-        actual = view.draw(data,NOW,48,'').copy()
+        actual = view.draw(data,NOW,80,'').copy()
         # Render same frame with only the space panel disabled; surrounding pixels
         # must be byte-identical, including the existing animated network strip.
         with patch.object(view.space_panel,'draw',return_value=pygame.Surface((225,148))):
-            reference = view.draw(data,NOW,48,'').copy()
+            reference = view.draw(data,NOW,80,'').copy()
         for box in ((0,0,480,110),(247,110,225,148),(0,266,480,54)):
             self.assertEqual(pygame.image.tostring(actual.subsurface(box),'RGB'),
                              pygame.image.tostring(reference.subsurface(box),'RGB'))
