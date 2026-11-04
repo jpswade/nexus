@@ -93,6 +93,7 @@ def fetch_weather():
 if not ARGS.snapshot:
     threading.Thread(target=fetch_weather, daemon=True).start()
 
+from emergency_alerts import EmergencyAlerts
 from feeds import PlanetFeeds
 from security import SecurityFeeds
 from preparedness import PreparednessFeeds
@@ -105,8 +106,9 @@ from terminal_theme import switch_view
 planet = PlanetFeeds(CACHE_DIR)
 security = SecurityFeeds(CACHE_DIR / 'security')
 preparedness = PreparednessFeeds(CACHE_DIR / 'preparedness', LOCATION)
+emergency = EmergencyAlerts(CACHE_DIR / 'preparedness')
 if not ARGS.snapshot:
-    for source in (planet, security, preparedness):
+    for source in (planet, security, preparedness, emergency):
         source.start()
 
 os.environ.setdefault('SDL_RENDER_DRIVER', 'opengles2')
@@ -199,6 +201,7 @@ while running:
     planet_data,planet_errors=planet.snapshot()
     security_data,security_errors=security.snapshot()
     uk_data,uk_errors=preparedness.snapshot()
+    ui.emergency_data = emergency.snapshot()
     ui.draw(workspace,age,seconds,time.time(),weather,weather_failed,
             security_data,security_errors,uk_data,uk_errors,planet_data,planet_errors,
             profile=ARGS.profile,automatic=cycle.automatic,paused=paused,

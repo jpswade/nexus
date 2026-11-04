@@ -1,3 +1,4 @@
+from emergency_alerts_ui import desktop as draw_emergency
 from network_activity import Activity, ActivityPanel
 """Calm, original-style NEXUS: stable sidebars and one central subject."""
 import datetime as dt
@@ -24,6 +25,7 @@ class FocusedDesktop:
         self.network_activity=Activity()
         self.network_panel=ActivityPanel()
         if not preview:self.network_activity.start()
+        self.emergency_data={}
         self.preview=preview
         self.screen=screen
         self.width,self.height=screen.get_size()
@@ -320,6 +322,9 @@ class FocusedDesktop:
         fresh=show and not self.terminal_visible
         self.terminal_visible=show
         if show:self.terminal(now,security,sec_errors,workspace,age,manual_terminal,fresh)
+        # Drop previous dynamic links; keep the persistent card above animated views.
+        self.links=[entry for entry in self.links if not entry[1].startswith("https://www.gov.uk/alerts/")]
+        draw_emergency(self,self.emergency_data,now,seconds)
 
     @staticmethod
     def orbit_label(planet,errors,now):
