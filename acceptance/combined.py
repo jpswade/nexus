@@ -24,7 +24,6 @@ def run(output):
         ui=FocusedDesktop(screen,{'name':'SYNTHETIC AREA'},preview=True,policy=policy)
         net=context.get('network',{'checked':now,'offline':False,'latency':25,'maximum':40,'label':'CONNECTED','colour':'accent'})
         ui.network_activity.snapshot=lambda net=net:dict(connection=net,signal=-60,checked=now,history=[(-60,1,1)])
-        ui.motion.snapshot=lambda:None  # replaced with timestamp-taking adapter below
         ui.motion.snapshot=lambda stamp,ctx=context:ctx.get('motion',{})
         uk={'threat':{'level':'MODERATE','fetched':now}}
         ui.draw(4 if case['name']=='observatory-manual' else 0,0,0,now,None,False,{},set(),uk,set(),{},set(),automatic=case['name']!='observatory-manual')

@@ -193,7 +193,7 @@ class DesktopRenderer:
         pinned=[c for c in visible if c['pinned'] and c['duration']>0]
         primary=self.priority.select(pinned,selection_now) if self.policy else None
         group=None if automatic else GROUPS[workspace]
-        remaining=[c for c in (visible if automatic else self.cards) if primary is None or c['id']!=primary['id']]
+        remaining=[c for c in (visible if automatic else self.cards) if (primary is None or c['id']!=primary['id']) and (primary is not None or c['id']!='conditions')]
         briefing=self.stream.select(remaining,selection_now,group=group) if self.policy else None
         self.selected=(primary,briefing)
         key=(int(now),workspace,automatic,paused,str(self.selected),self.page, bool(self.detail),ui.source_detail)

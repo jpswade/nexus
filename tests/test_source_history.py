@@ -84,6 +84,7 @@ class DetailsTests(unittest.TestCase):
     def test_companion_health_does_not_hide_ping_or_offline(self):
         from companion import Companion
         view=Companion()
+        view.motion.snapshot=lambda now: {}
         with patch.object(view,'text',wraps=view.text) as text:
             view.draw({},10000,35,'')
             values=[c.args[0] for c in text.call_args_list]

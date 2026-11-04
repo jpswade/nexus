@@ -98,6 +98,7 @@ class ScifiMotionTests(unittest.TestCase):
 
     def test_refresh_reveals_briefing_without_hiding_status_or_ping(self):
         view=Companion()
+        view.motion.snapshot=lambda now: {}
         data={'weather':{'fetched':10000,'items':[]},'threat':{'fetched':10000,'level':'severe'}}
         view.draw(data,10000,3,'')
         data['weather']['fetched']=10001

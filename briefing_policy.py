@@ -60,7 +60,7 @@ def build_cards(context, now):
         state, checked = _health(sample, records.get(record or key, {}), now, age)
         end = _stamp(row.get('valid_until', row.get('expires', row.get('end'))))
         ended = expired or end is not None and now >= end
-        body = [str(line) for line in body if line is not None and str(line)]
+        body = list(dict.fromkeys(str(line) for line in body if line is not None and str(line) and str(line) != str(title)))
         if ended:
             state, severity = 'info', 'info'
             body.append('Ended / historical evidence; not an active warning.')
