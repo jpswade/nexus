@@ -102,9 +102,21 @@ class DesktopRenderer:
         ui.text('Checked '+stamp(card['checked']),x+18,y+h-78,12,DIM)
         ui.text('Valid until '+stamp(card['valid_until']),x+18,y+h-58,12,DIM)
         ui.text('DETAILS / FULL TEXT',x+18,y+h-36,13,LIME)
-        ui.text(f"Dwell {card['duration']:g}s",x+w-18,y+h-36,12,DIM,right=True)
         self.detail_buttons.append(((x+8,y+h-48,w-16,42),card))
         ui.register((x+8,y+65,w-16,h-120),card['url'],ui.active_url is None)
+
+    def countdown(self, card, rotation, rect, now):
+        if card is None:return
+        timing=rotation.timing(now) if hasattr(rotation,'timing') else None
+        if not isinstance(timing,tuple) or len(timing)!=2:return
+        remaining,total=timing
+        if total<=0:return
+        ui=self.ui;x,y,w,h=rect
+        ui.text(f'Next {math.ceil(remaining):d}s',x+w-18,y+h-36,12,DIM,right=True)
+        track=pygame.Rect(*ui.point(x+18,y+h-15),round((w-36)*ui.scale),max(3,round(4*ui.scale)))
+        pygame.draw.rect(ui.target,(31,52,63),track)
+        track.width=round(track.width*max(0,min(1,remaining/total)))
+        pygame.draw.rect(ui.target,TEAL,track)
 
     def local(self,weather,failed,now):
         ui=self.ui
@@ -236,4 +248,7 @@ class DesktopRenderer:
             ui.text('Repeated probe failures / retrying',340,390,24,DIM)
             self.network(self.context['network'])
             return
+        if not self.detail and not ui.source_detail:
+            self.countdown(primary,self.priority,(28,166,690,472),selection_now)
+            self.countdown(briefing,self.stream,(736,166,516,472),selection_now)
         draw_camera_eye(ui.target,self.context['motion'],now,ui.point(208,35),max(6,round(12*ui.scale)))

@@ -66,9 +66,22 @@ class ContractTests(unittest.TestCase):
         for row in rows:
             self.assertLessEqual(view.face(22).size(row)[0],438)
         for i in range(len(pages)):
-            view.draw({},NOW+i*8,i*8,'')
+            view.draw({},NOW+i*renderer.PAGE_SECONDS,i*renderer.PAGE_SECONDS,'')
             self.assertEqual(renderer.page,i)
         self.assertTrue(all(len(page)<=4 for page in pages))
+
+    def test_page_holds_fifteen_seconds_and_countdown_matches_next_change(self):
+        view=view_for(card(body=['Long evidence '*40]))
+        view.draw({},NOW,0,'')
+        self.assertEqual(view.card_renderer.remaining,15)
+        view.draw({},NOW+14,14,'')
+        self.assertEqual(view.card_renderer.page,0)
+        self.assertEqual(view.card_renderer.remaining,1)
+        view.draw({},NOW+15,15,'')
+        self.assertEqual(view.card_renderer.page,1)
+        self.assertEqual(view.card_renderer.remaining,15)
+        view.card_renderer.draw(view,card(),16,card_remaining=3)
+        self.assertEqual(view.card_renderer.remaining,3)
 
     def test_wrap_preserves_unbroken_text(self):
         view=Companion()

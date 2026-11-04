@@ -5,6 +5,7 @@ remain accessible without a scrolling ticker. No I/O, source ranking or risk sco
 """
 from collections import OrderedDict
 import datetime as dt
+import pygame
 
 from terminal_theme import PALETTE
 
@@ -35,7 +36,7 @@ def wrap(value, face, width):
 
 
 class CardRenderer:
-    PAGE_SECONDS = 8
+    PAGE_SECONDS = 15
 
     def __init__(self):
         self.progress = OrderedDict()
@@ -45,7 +46,7 @@ class CardRenderer:
         self.page = 0
         self.layout_token = None
 
-    def draw(self, view, card, age, policy_available=True):
+    def draw(self, view, card, age, policy_available=True, card_remaining=None):
         view.box((14, 110, 458, 148), '', ink='accent')
         if card is None:
             self.active = None
@@ -85,3 +86,11 @@ class CardRenderer:
         for i, row in enumerate(self.pages[self.page]):
             view.text(row, 23, 134 + i*24, 22, 'text', 438)
         view.text(f"{self.page+1}/{len(self.pages)} · {card['source']}", 23, 236, 13, 'muted', 438)
+
+        # Count down to the next actual change: page advance or card rotation.
+        remaining = self.PAGE_SECONDS - elapsed % self.PAGE_SECONDS
+        if isinstance(card_remaining, (int, float)):
+            remaining = min(remaining, max(0, card_remaining))
+        self.remaining = remaining
+        pygame.draw.rect(view.surface, PALETTE['border'], (23, 252, 438, 4))
+        pygame.draw.rect(view.surface, PALETTE['accent'], (23, 252, round(438 * remaining / self.PAGE_SECONDS), 4))

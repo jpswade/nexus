@@ -154,6 +154,16 @@ class RotationTests(unittest.TestCase):
         cards.append(dict(self.warning, id='new-warning'))
         self.assertEqual(rotation.select(cards, NOW+self.warning['duration'])['id'], 'network')
 
+    def test_countdown_does_not_restart_when_feed_refreshes(self):
+        rotation=Rotation()
+        first=dict(self.quiet,duration=30)
+        rotation.select([first],NOW)
+        self.assertEqual(rotation.timing(NOW),(30,30))
+        rotation.select([dict(first,checked=NOW+10,duration=60)],NOW+10)
+        self.assertEqual(rotation.timing(NOW+10),(20,30))
+        rotation.select([],NOW+11)
+        self.assertEqual(rotation.timing(NOW+11),(0,0))
+
     def test_group_switch_removal_backwards_clock_and_observatory(self):
         obs = indexed({})['planet:iss']
         rotation = Rotation()

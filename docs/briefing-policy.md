@@ -14,7 +14,11 @@ seconds. It returns plain dictionaries with exactly these fields:
   never a combined threat score or claim about asset exposure.
 - `pinned`: priority candidate, not a request to monopolise rotation.
 - `duration`: seconds; **zero means compact summary only**. Positive dwell is
-  at least 12 seconds, plus enough time for full text at 150 words/minute.
+  at least 30 seconds, plus enough time for full text at 120 words/minute.
+  LCD pages hold for 15 seconds. Both displays show a draining countdown bar;
+  the LCD counts down to whichever comes first: the next page or card.
+  `Rotation.timing(now)` returns the remaining and total seconds for the current
+  visit, so a feed refresh does not restart or distort its countdown.
 
 ## Input adapter contract
 
