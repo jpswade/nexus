@@ -15,6 +15,8 @@ from terminal_theme import PALETTE
 from alert_state import AlertState
 from companion_network import NetworkMonitor, sweep_duration
 from network_activity import Activity, ActivityPanel
+from radar_outages import RadarFeed
+import radar_ui
 from grid_notices_ui import companion as draw_grid_notices
 from grid_notices import INTERVAL as GRID_INTERVAL
 
@@ -78,6 +80,7 @@ class Companion:
         self.tiles = {}
         self.activity_panel = ActivityPanel()
         self.activity = None
+        self.radar = None
 
     def face(self, size):
         if size not in self.fonts:
@@ -204,12 +207,16 @@ class Companion:
         else:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
-        for slot,x,sources,offset in (('local',14,('weather','floods','network','grid'),0),
+        for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar'),0),
                                       ('news',247,('ncsc','news'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
             if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
                 source='news'
+            if source=='radar':
+                sample=self.radar.snapshot(now) if self.radar else {}
+                radar_ui.companion(self,sample,phase,x)
+                continue
             if source=='grid':
                 draw_grid_notices(self,data.get('grid'),now,phase,x)
                 continue
@@ -349,6 +356,8 @@ def main():
         raise ValueError('companion_rotation must be 0 or 180 degrees')
     cache = Path(os.environ.get('NEXUS_CACHE', ROOT/'.cache'))/'preparedness'
     view = Companion()
+    view.radar = RadarFeed()
+    if not args.snapshot:view.radar.start()
     target = None if args.snapshot else Framebuffer(args.device or find_lcd())
     if not args.snapshot:
         threading.Thread(target=fallback_worker, args=(cache, config), daemon=True).start()
@@ -359,21 +368,24 @@ def main():
         view.activity.start()
     frame_clock = pygame.time.Clock()
     start, refreshed = time.monotonic(), -100
-    while True:
-        age = time.monotonic()-start
-        if age-refreshed >= 10:
-            # Read the main dashboard's cache, without duplicate network requests.
-            feeds = PreparednessFeeds(cache, config)
-            data, _ = feeds.snapshot()
-            refreshed = age
-        surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot())
-        if rotation == 180:
-            surface = pygame.transform.rotate(surface, 180)
-        if args.snapshot:
-            pygame.image.save(surface, args.snapshot)
-            return
-        target.write(surface)
-        frame_clock.tick(10)  # Match LCD driver cadence; include rendering time.
+    try:
+        while True:
+            age = time.monotonic()-start
+            if age-refreshed >= 10:
+                # Read the main dashboard's cache, without duplicate network requests.
+                feeds = PreparednessFeeds(cache, config)
+                data, _ = feeds.snapshot()
+                refreshed = age
+            surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot())
+            if rotation == 180:
+                surface = pygame.transform.rotate(surface, 180)
+            if args.snapshot:
+                pygame.image.save(surface, args.snapshot)
+                return
+            target.write(surface)
+            frame_clock.tick(10)  # Match LCD driver cadence; include rendering time.
+    finally:
+        view.radar.stop()
 
 
 if __name__ == '__main__':
