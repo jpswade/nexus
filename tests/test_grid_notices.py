@@ -131,7 +131,7 @@ class GridDisplayTests(unittest.TestCase):
             image=view.draw(data,NOW,49,'')
             words=[c.args[0] for c in text.call_args_list]
             self.assertIn('GRID / CHECKED',words)
-            self.assertIn('SEVERE',words)
+            self.assertIn('UK THREAT / SEVERE',words)
             self.assertIn('Wi-Fi --',words)
             self.assertIn('Validity unknown / check source',words)
         self.assertEqual(image.get_size(),(480,320))

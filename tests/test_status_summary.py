@@ -27,3 +27,18 @@ class StatusSummaryTests(unittest.TestCase):
             self.assertEqual('WEATHER WARNING / MET OFFICE' in panels, index != 2)
             for prefix in ('UK THREAT / ', 'WEATHER / ', 'FLOODS / ', 'DOOMSDAY / '):
                 self.assertTrue(any(value.startswith(prefix) for value in calls), (index, prefix))
+
+class LiveChecksTests(unittest.TestCase):
+    def test_failed_or_stale_checks_never_report_empty_success(self):
+        from status_summary import live_checks
+        data={'grid':{'fetched':100,'failed':True,'items':[]},'weather':{'fetched':100,'items':[]}}
+        checks=live_checks(data,{'fetched':100,'failed':True,'items':[]},100,{'weather'})
+        self.assertEqual([r[1] for r in checks],['STALE','STALE','STALE','UNREADABLE'])
+
+    def test_bulletins_are_not_emergencies_and_tests_are_explicit(self):
+        from status_summary import live_checks
+        data={'grid':{'fetched':100,'items':[{'published':90}]}}
+        emergency={'fetched':100,'items':[{'status':'current','test':True}]}
+        checks=live_checks(data,emergency,100)
+        self.assertEqual(checks[0],('GOV.UK','1 TEST','ok'))
+        self.assertEqual(checks[1],('GRID','1 BULLETINS','ok'))

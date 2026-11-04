@@ -83,7 +83,7 @@ class ScifiMotionTests(unittest.TestCase):
         data={'threat':{'level':'severe','fetched':10000}}
         for age in (0,12.9,13,13.2,19,26,39):
             surface=view.draw(data,10000,age,'')
-            pixel=surface.get_at((20,60))
+            pixel=surface.get_at((2,25))
             self.assertGreater(pixel.r,180)
             self.assertGreater(pixel.g,100)
 
@@ -103,7 +103,7 @@ class ScifiMotionTests(unittest.TestCase):
         data['weather']['fetched']=10001
         surface=view.draw(data,10001,4,'')
         self.assertEqual(view.tiles['local'][1],4)
-        self.assertGreater(surface.get_at((20,60)).r,180)
+        self.assertGreater(surface.get_at((2,25)).r,180)
 
     def test_ping_values_share_bottom_bar_and_no_connection_box(self):
         view=Companion();calls=[]

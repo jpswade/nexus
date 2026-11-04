@@ -1,3 +1,4 @@
+from status_summary import live_checks
 from emergency_alerts_ui import desktop as draw_emergency
 from space_weather import SpaceWeather, LINKS as SPACE_LINKS
 from space_weather_ui import SpaceWeatherPanel
@@ -269,14 +270,14 @@ class FocusedDesktop:
             self.changes.update(security,uk,alerts,now)
             php=php_summary(security,now)
             self.text('N E X U S',28,22,25,TEXT,True)
-            names=UK_NAMES if profile=='uk' else ('Security overview','PHP watch','Known exploited','World view')
-            self.text(names[workspace],245,32,15,DIM)
-            for i in range(4):
-                x=1019+i*34
-                self.text(str(i+1),x,27,14,TEAL if workspace==i else DIM,True)
-                if workspace==i:self.line((x-4,50),(x+15,50),TEAL,2)
-            mode='Paused' if paused else f'Next view in {max(0,60-int(age))}s' if automatic else 'Manual view'
-            self.text(mode,1252,32,11,DIM,right=True)
+            self.text('LIVE CHECKS / SOURCE STATUS',28,53,10,DIM)
+            checks=live_checks(uk,self.emergency_data,now,uk_errors,alerts)
+            for i,(label,value,state) in enumerate(checks):
+                x=245+i*251
+                colour=AMBER if state in ('alert','stale') else TEAL if state=='ok' else DIM
+                self.text(label,x,16,12,DIM,True)
+                self.text(value,x,39,19,colour,True)
+                self.line((x-12,15),(x-12,61),colour)
             self.line((28,70),(1252,70))
             self.sidebars(now,weather,weather_failed,security,sec_errors,uk,uk_errors,alerts,php)
             if workspace==1 or (profile=='technical' and workspace==0):self.php_detail(age,php,security,sec_errors,now)

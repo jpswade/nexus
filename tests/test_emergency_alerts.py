@@ -141,7 +141,7 @@ class LayoutTests(unittest.TestCase):
         before = view.draw(data, NOW, 0, 'Example', network).copy()
         view.emergency_data = self.data
         after = view.draw(data, NOW, 0, 'Example', network).copy()
-        for rect in ((0, 0, 480, 66), (0, 266, 480, 54)):
+        for rect in ((0, 0, 480, 29), (0, 266, 480, 54)):
             self.assertEqual(pygame.image.tostring(before.subsurface(rect), 'RGB'),
                              pygame.image.tostring(after.subsurface(rect), 'RGB'))
         pygame.image.save(after, '/tmp/nexus-emergency-alerts/companion-emergency.png')
