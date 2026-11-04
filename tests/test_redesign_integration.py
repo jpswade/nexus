@@ -26,3 +26,17 @@ class IntegrationTests(unittest.TestCase):
     def test_expired_weather_does_not_return_to_normal_rotation(self):
         context={'uk':{'weather':{'fetched':NOW,'items':[{'title':'Expired warning','colour':'red','valid_until':NOW-1}]}}}
         self.assertIsNone(Rotation().select(build_cards(context,NOW),NOW))
+
+
+class SnapshotCadenceTests(unittest.TestCase):
+    def test_lcd_parses_source_snapshots_once_per_second(self):
+        from companion import Companion
+        from unittest.mock import patch
+        view=Companion()
+        with patch.object(view.space_weather,'snapshot',return_value={}) as snapshot:
+            view.draw({},10000,0,'')
+            view.draw({},10000.1,.1,'')
+            view.draw({},10000.9,.9,'')
+            self.assertEqual(snapshot.call_count,1)
+            view.draw({},10001,1,'')
+            self.assertEqual(snapshot.call_count,2)
