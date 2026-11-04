@@ -33,7 +33,8 @@ class RefreshFallbackTests(unittest.TestCase):
     def test_fresh_shared_cache_does_not_make_duplicate_requests(self):
         with patch('companion.PreparednessFeeds') as factory:
             feeds = factory.return_value
-            feeds.snapshot.return_value = ({name: {'fetched': 10000} for name in INTERVALS}, set())
+            feeds.snapshot.return_value = ({**{name: {'fetched': 10000} for name in INTERVALS},
+                                             'grid': {'attempted': 10000}}, set())
             refresh_overdue(None, {}, {}, 10001)
             feeds.refresh.assert_not_called()
 
@@ -43,12 +44,12 @@ class RefreshFallbackTests(unittest.TestCase):
             feeds = factory.return_value
             feeds.snapshot.return_value = ({}, set())
             refresh_overdue(None, {}, attempted, 10000)
-            self.assertEqual([call.args[0] for call in feeds.refresh.call_args_list], ['threat', 'weather', 'floods', 'ncsc', 'news'])
+            self.assertEqual([call.args[0] for call in feeds.refresh.call_args_list], ['threat', 'weather', 'floods', 'ncsc', 'news', 'grid'])
             feeds.refresh.reset_mock()
             refresh_overdue(None, {}, attempted, 10030)
             feeds.refresh.assert_not_called()
             refresh_overdue(None, {}, attempted, 10300)
-            self.assertEqual(feeds.refresh.call_count, 5)
+            self.assertEqual(feeds.refresh.call_count, 6)
 
     def test_long_text_keeps_requested_font_size(self):
         view = Companion()
