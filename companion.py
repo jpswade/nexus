@@ -1,9 +1,9 @@
-from source_details import HEADERS, describe
+"""480x320 Pygame companion, written directly to the ILI9486 framebuffer."""
+from source_details import HEADERS
 from terrorism import threat_details
 from camera_motion import MotionReader
 from camera_eye import draw as draw_camera_eye
 from status_summary import live_checks
-"""480x320 Pygame companion, written directly to the ILI9486 framebuffer."""
 import argparse
 import datetime as dt
 import json
@@ -15,21 +15,17 @@ import threading
 import math
 
 import pygame
-from preparedness import score_label, display_items, article_date, PreparednessFeeds, MAX_AGES, INTERVALS
+from preparedness import PreparednessFeeds, MAX_AGES, INTERVALS
 from terminal_theme import PALETTE
 from alert_state import AlertState
 from emergency_alerts import EmergencyAlerts
-from emergency_alerts_ui import companion as draw_emergency
-from companion_network import NetworkMonitor, sweep_duration
-from network_activity import Activity, ActivityPanel
+from lcd_renderer import CardRenderer
+from companion_network import NetworkMonitor
+from network_activity import Activity
 from space_weather import SpaceWeather
-from space_weather_ui import SpaceWeatherPanel
 from radar_outages import RadarFeed
-import radar_ui
-from grid_notices_ui import companion as draw_grid_notices
 from grid_notices import INTERVAL as GRID_INTERVAL
 from govuk_briefings import INTERVAL as GOVUK_INTERVAL
-from govuk_briefings_ui import companion as draw_govuk
 
 ROOT = Path(__file__).resolve().parent
 
@@ -88,14 +84,23 @@ class Companion:
         self.surface = pygame.Surface((480, 320), depth=16, masks=(0xf800, 0x07e0, 0x001f, 0))
         self.fonts = {}
         self.alerts = AlertState()
-        self.tiles = {}
-        self.activity_panel = ActivityPanel()
+        self.card_renderer = CardRenderer()
+        self.policy = None
+        self.rotation = None
+        try:
+            import briefing_policy
+        except ModuleNotFoundError as error:
+            if error.name != 'briefing_policy':
+                raise
+        else:
+            self.policy = briefing_policy
+            self.rotation = briefing_policy.Rotation()
+        self.context = {}
         self.activity = None
         self.emergency_data = {}
         self.source_records = {}
         self.motion = MotionReader()
         self.space_weather = SpaceWeather()
-        self.space_panel = SpaceWeatherPanel(self.space_weather)
         self.radar = None
 
     def face(self, size):
@@ -166,25 +171,12 @@ class Companion:
             pygame.draw.circle(glyph,colour,(x+22,y+23),2)
         self.surface.blit(pygame.transform.smoothscale(glyph,(40,32)),(target_x,target_y-5))
 
-    def shutter(self, slot, token, age, rect, period, offset=0):
-        previous=self.tiles.get(slot)
-        if previous is None:
-            self.tiles[slot]=(token,age-1)
-        elif previous[0]!=token:
-            self.tiles[slot]=(token,age)
-        opening=min(1,max(0,(age-self.tiles[slot][1])/.45))
-        remaining=period-((age+offset)%period)
-        visible=min(opening,min(1,remaining/.3))
-        if visible<1:
-            width=int(rect[2]*(1-visible))
-            pygame.draw.rect(self.surface,PALETTE['background'],(rect[0]+rect[2]-width,rect[1],width,rect[3]))
-            pygame.draw.line(self.surface,PALETTE['accent'],(rect[0]+rect[2]-width,rect[1]),(rect[0]+rect[2]-width,rect[1]+rect[3]-1),2)
-
     def draw(self, data, now, age, scope, network=None, errors=()):
         self.surface.fill(PALETTE['background'])
         net=network or {}
         checked=net.get('checked')
-        if checked is not None and now-checked<=35 and net.get('offline', False):
+        if checked is not None and 0<=now-checked<=35 and net.get('offline', False):
+            self.card_renderer.last_age = None
             bright=int(age*2)%2 == 0
             colour='#ff6464' if bright else '#8b3038'
             pygame.draw.rect(self.surface,colour,(4,4,472,312),8)
@@ -213,13 +205,8 @@ class Companion:
             self.text(source,14,29,13,ink,458)
             self.text(checked,14,47,12,ink,458)
         else:
-            checks=live_checks(data,self.emergency_data,now,errors,alerts)
-            for i,(name,value,state) in enumerate(checks[:2]+checks[3:]):
-                x=8+i*158
-                pygame.draw.rect(self.surface,PALETTE['panel'],(x,29,154,34))
-                colour='#e6a23c' if state in ('alert','stale') else 'accent' if state=='ok' else 'muted'
-                self.text(name,x+5,30,10,'muted',144)
-                self.text(value,x+5,42,16,colour,144)
+            self.text(source,14,29,13,ink,458)
+            self.text(checked,14,47,12,ink,458)
 
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
@@ -230,73 +217,29 @@ class Companion:
         status=(label+' / '+('UPCOMING' if warning['detail'].startswith('UPCOMING') else 'WARNING')) if warning else 'NO ACTIVE WARNINGS'
         if weather_stale:
             status=(label+' / STALE') if warning else 'WARNINGS / STALE' if weather else 'WARNINGS / UNAVAILABLE'
-        self.text(status,22,76,19,wi,373)
+        self.text(status,22,70,18,wi,373)
         if warning:
             self.weather_icon(warning['title'],418,77,age,wi)
         else:
             self.text('WX',427,77,18,'muted',40)
-        # Independent channels: local conditions on the left, news on the right.
-        for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar','space'),0),
-                                      ('news',247,('ncsc','news','health','govuk'),6)):
-            phase=age+offset
-            source=sources[int(phase/16)%len(sources)]
-            if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
-                source='news'
-            if source=='govuk':
-                draw_govuk(self,data.get('govuk'),now,phase,x)
-                continue
-            if source=='health':
-                selected=HEADERS[int(phase//48)%len(HEADERS)]
-                name,url,caveat,state,attempted,successful,events=describe(
-                    selected,self.source_records,data,self.emergency_data,now)
-                self.box((x,110,225,148),name,ink='accent')
-                self.text(state,x+9,137,22,'accent',207)
-                self.text(attempted,x+9,169,12,'muted',207)
-                self.text(successful,x+9,190,12,'muted',207)
-                changed=next((e for e in reversed(events) if e['kind']=='changed'),None)
-                self.text('Changed '+dt.datetime.fromtimestamp(changed['time']).strftime('%d %b %H:%M') if changed else 'No retained changes',x+9,212,14,'text',207)
-                self.text('Feed health / not Pi link',x+9,230,10,'muted',207)
-                continue
-            if source=='space':
-                self.surface.blit(self.space_panel.draw((225,148),now,age),(x,110))
-                continue
-            if source=='radar':
-                sample=self.radar.snapshot(now) if self.radar else {}
-                radar_ui.companion(self,sample,phase,x)
-                continue
-            if source=='grid':
-                draw_grid_notices(self,data.get('grid'),now,phase,x)
-                continue
-            if source=='network':
-                state=self.activity.snapshot() if self.activity else {}
-                self.surface.blit(self.activity_panel.draw(state),(x,110))
-                continue
-            sample=data.get(source)
-            stale=not sample or now-sample['fetched']>MAX_AGES[source]
-            items=display_items(source,sample,now)
-            if source=='weather':
-                items=wa
-            item=items[int(phase/32)%len(items)] if items else None
-            title=item.get('compact_title',item['title']) if item else ('Source unavailable' if not sample else
-                'Weather data stale' if source=='weather' and stale else
-                {'weather':'No active weather warnings','floods':'No local flood alerts',
-                 'ncsc':'No NCSC articles today','news':'No new exploited CVEs in 30 days'}[source])
-            if source=='weather' and item:
-                title=title.split(' affecting ')[0]
-            heading={'weather':'WEATHER','floods':'LOCAL FLOODS','ncsc':'NCSC TODAY','news':'CYBER / GLOBAL'}[source]
-            rect=(x,110,225,148)
-            self.box(rect,heading+(' / STALE' if stale else ''),ink='accent')
-            self.lines(title,139,2 if source=='news' else 3,22,x=x+9,width=207)
-            detail=article_date(item) if source=='ncsc' and item else scope if source=='floods' else 'MET OFFICE' if source=='weather' else 'NCSC' if source=='ncsc' else 'CISA KEV / 30 DAYS'
-            if source=='news' and item:
-                self.text(score_label(item),x+9,191,16,'error' if item.get('score',0)>=7 else 'accent',207)
-                self.text(item['id'],x+9,213,14,'accent',207)
-                detail='ADDED '+item['added']+(' / CACHED SCORE' if item.get('score_cached') else ' / CISA')
-            self.text(detail,x+9,233,12,'muted',207)
-            # Thin moving channel marker, timed to the actual page rotation.
-            pygame.draw.rect(self.surface,PALETTE['border'],(x+9,250,207,2))
-            pygame.draw.rect(self.surface,PALETTE['accent'],(x+9,250,int(207*(phase%16)/16),2))
-            self.shutter(slot,(source,(sample or {}).get('fetched')),age,rect,16,offset)
+        # Compact checks are always visible, including during source disagreement.
+        checks=live_checks(data,self.emergency_data,now,errors,alerts)
+        pygame.draw.rect(self.surface,PALETTE['panel'],(14,92,458,16))
+        for i,(name,value,state) in enumerate(checks[:2]+checks[3:]):
+            x=14+i*153
+            tone='warning' if state in ('alert','stale') else 'accent' if state=='ok' else 'muted'
+            self.text(name+' '+value,x,93,10,PALETTE.get(tone,'#e6a23c'),150)
+        context = {**self.context, 'uk': data, 'emergency': self.emergency_data,
+                   'network': net, 'motion': self.motion.snapshot(now),
+                   'source_records': self.source_records,
+                   'space': self.space_weather.snapshot(now),
+                   'radar': self.radar.snapshot(now) if self.radar else {},
+                   'location': self.context.get('location', scope)}
+        card = None
+        if self.policy is not None:
+            cards = self.policy.build_cards(context, now)
+            card = self.rotation.select(cards, now)
+        self.card_renderer.draw(self, card, age, self.policy is not None)
         # Current and session extrema share the animated ping bar.
         net=network or dict(colour='muted',checked=None,latency=None)
         latency=net.get('latency');checked=net.get('checked')
@@ -317,8 +260,8 @@ class Companion:
         signal=activity.get('signal')
         signal_fresh=now-activity.get('checked',0)<=5
         wifi_label=f'Wi-Fi {signal:.0f} dBm' if signal is not None and signal_fresh else 'Wi-Fi --'
-        self.text(wifi_label,reading_x,305,12,'lime',466-reading_x)
-        track=pygame.Rect(14,266,reading_x-22,54)
+        self.text(wifi_label,326,303,12,'lime',140)
+        track=pygame.Rect(14,266,304,54)
         pygame.draw.rect(self.surface,PALETTE['border'],track)
         previous_clip=self.surface.get_clip()
         self.surface.set_clip(track)
@@ -344,7 +287,7 @@ class Companion:
             if points:
                 pygame.draw.circle(self.surface,PALETTE['accent'],points[-1],3+int((math.sin(age*5)+1)))
         else:
-            self.text('CHECKING',track.left+12,track.top+15,20,'muted',track.width-24)
+            self.text('CHECKING',track.left+12,track.top+3,18,'muted',track.width-24)
         # A separate lime lane keeps dBm and latency on distinct scales.
         pygame.draw.line(self.surface,PALETTE['panel'],(track.left,296),(track.right,296),1)
         previous=None
@@ -364,8 +307,7 @@ class Companion:
         else:
             self.text('Wi-Fi unavailable',track.left+5,299,12,'muted',track.width-10)
         self.surface.set_clip(previous_clip)
-        draw_emergency(self.surface,self.emergency_data,now,age)
-        draw_camera_eye(self.surface,self.motion.snapshot(now),now,(366,15),8)
+        draw_camera_eye(self.surface,self.motion.snapshot(now),now,(365,16),7)
         return self.surface
 
 
@@ -410,6 +352,8 @@ def main():
         raise ValueError('companion_rotation must be 0 or 180 degrees')
     cache = Path(os.environ.get('NEXUS_CACHE', ROOT/'.cache'))/'preparedness'
     view = Companion()
+    from security import SecurityFeeds
+    from feeds import PlanetFeeds
     emergency = EmergencyAlerts(cache)
     view.radar = RadarFeed()
     if not args.snapshot:view.radar.start()
@@ -434,6 +378,15 @@ def main():
                 data, errors = feeds.snapshot()
                 from source_history import History
                 view.source_records={name: History(feeds.directory if name in ('weather','floods') else cache).read(name,time.time()) for name in HEADERS}
+                view.source_records.update({name: History(cache.parent/'security').read(name,time.time()) for name in ('php','kev','phpnews')})
+                security_data, _ = SecurityFeeds(cache.parent/'security').snapshot()
+                planet_data, _ = PlanetFeeds(cache.parent).snapshot()
+                try:
+                    conditions = json.loads((cache.parent/'weather.json').read_text())
+                except (OSError, ValueError):
+                    conditions = None
+                view.context = dict(security=security_data, planet=planet_data,
+                                    weather=conditions, location=feeds.flood_scope)
                 refreshed = age
             view.emergency_data = emergency.snapshot()
             surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot(), errors)
