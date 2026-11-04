@@ -1,0 +1,10 @@
+[Unit]
+Description=Nexus optional camera motion observation
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/dashboard/camera_motion.py
+Restart=on-failure
+RestartSec=10
+UMask=0077
+[Install]
+WantedBy=default.target

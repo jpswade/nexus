@@ -1,3 +1,5 @@
+from camera_motion import MotionReader
+from camera_eye import draw as draw_camera_eye
 from status_summary import live_checks
 from emergency_alerts_ui import desktop as draw_emergency
 from space_weather import SpaceWeather, LINKS as SPACE_LINKS
@@ -37,6 +39,7 @@ class FocusedDesktop:
         if not preview:self.space_weather.start()
         self.radar=RadarFeed()
         if not preview:self.radar.start()
+        self.motion=MotionReader()
         self.preview=preview
         self.screen=screen
         self.width,self.height=screen.get_size()
@@ -349,6 +352,7 @@ class FocusedDesktop:
         # Drop previous dynamic links; keep the persistent card above animated views.
         self.links=[entry for entry in self.links if not entry[1].startswith("https://www.gov.uk/alerts/")]
         draw_emergency(self,self.emergency_data,now,seconds)
+        draw_camera_eye(self.target,self.motion.snapshot(now),now,self.point(208,35),max(6,round(12*self.scale)))
 
     @staticmethod
     def orbit_label(planet,errors,now):
