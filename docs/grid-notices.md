@@ -84,3 +84,49 @@ Installer copies both `grid_notices.py` and `grid_notices_ui.py`. No configurati
 migration or additional dependencies are needed. Shared integration edits are
 small hooks in preparedness.py, focused_ui.py, companion.py and install.sh;
 merge these hooks with other source cards instead of overwriting their rotations.
+
+## Follow-up: topic classification, not active-warning detection (#29)
+
+Rechecked the official OpenAPI schema and endpoint on 4 November 2026.
+`warningType` is a free string, not an enumerated severity or lifecycle field.
+The display now uses a narrow, exact type-name map (case/whitespace normalized):
+
+- `SO-SO TRADES`: Market bulletin. The official schema's dataset example and
+  existing public fixture describe operator transaction settlement prices.
+- `IT SYSTEMS OUTAGE`: IT service bulletin. The existing 3 November fixture
+  addresses Balancing Mechanism API users; it is not a household power-cut notice.
+- `ELECTRICITY MARGIN NOTICE`: Margin notice, a request for spare capacity.
+- `HIGH RISK OF DEMAND REDUCTION` and `DEMAND CONTROL IMMINENT`: Demand-control
+  notice. These are operational warning names documented by NESO. No live
+  demand-control lifecycle fixture was verified; this label only describes topic.
+- All other types, including abbreviations and prefixed/suffixed names, remain
+  Unclassified bulletin. No body keywords assign a topic or urgency.
+
+Evidence:
+
+- [NESO explanation of system notices](https://www.neso.energy/energy-101/electricity-explained/how-do-we-balance-grid/what-are-system-notices)
+  distinguishes spare-capacity requests from demand-control notifications.
+- [NESO industry information](https://gbcmn.nationalenergyso.com/faq/capacity-market-notices/what-other-information-is-available-to-the-industry)
+  explicitly names Electricity Margin Notice, High Risk of Demand Reduction and
+  Demand Control Imminent on BMRS.
+- [Official July 8–9 SYSWARN history](https://data.elexon.co.uk/bmrs/api/v1/system/warnings?publishDateTimeFrom=2026-07-08T00%3A00%3A00Z&publishDateTimeTo=2026-07-10T00%3A00%3A00Z&format=json)
+  returned an EMN issue (8 July 20:31 UTC), updates (9 July 08:28 and 12:49 UTC)
+  and cancellation (18:30 UTC), all with the **same** `warningType`.
+  The validity period and cancellation are prose only. The synthetic regression
+  sequence models this shape without interpreting times or identity from prose.
+
+This is useful classification for reading bulletins, **not** evidence that a
+warning is currently in force. In particular an EMN body mentions demand control
+as a request to industry: keyword matching would incorrectly escalate it.
+Cancellation wording in either title or body is only a check-source hint.
+The persistent-alert blocker remains: a verified lifecycle parser/source with
+identity, revisions, validity, cancellation and completeness semantics is needed.
+A seven-day publication query cannot establish all still-active warnings.
+
+Desktop shows topic and its meaning alongside the existing status caveat. LCD
+alternates topic with GB/unspecified-scope metadata every four seconds; issue,
+validity and active-status caveats remain. The lifecycle caveat is now at y=191,
+above the GOV.UK strip which obscured the previous y=242 line. Cancellation hints
+alternate with the combined validity/active-status caveat. Neither view asserts local supply loss.
+This follow-up edits only the two grid modules, grid tests and this document;
+it changes no shared rotation/feed hooks, AlertState or LED controls.

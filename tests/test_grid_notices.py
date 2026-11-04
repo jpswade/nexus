@@ -3,7 +3,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
-from grid_notices import GridNotices, parse, card, stamp, persistent_alerts, MAX_BYTES, URL
+from grid_notices import GridNotices, parse, card, stamp, persistent_alerts, MAX_BYTES, URL, classify
 
 FIXTURE = Path(__file__).parent/'fixtures/grid-notices.json'
 NOW = stamp('2026-11-04T00:00:00Z')
@@ -44,6 +44,45 @@ class GridTests(unittest.TestCase):
         self.assertIn('not structured',c['validity'])
         self.assertEqual(persistent_alerts(sample,NOW),[])
         self.assertEqual(persistent_alerts(sample,NOW+100000),[])
+
+    def test_topics_are_exact_type_matches_not_body_keywords(self):
+        expected = {
+            'SO-SO TRADES': 'Market bulletin',
+            'IT SYSTEMS OUTAGE': 'IT service bulletin',
+            'ELECTRICITY MARGIN NOTICE': 'Margin notice',
+            'HIGH RISK OF DEMAND REDUCTION': 'Demand-control notice',
+            'DEMAND CONTROL IMMINENT': 'Demand-control notice',
+            'UNKNOWN EMERGENCY': 'Unclassified bulletin',
+            'CANCELLED DEMAND CONTROL IMMINENT': 'Unclassified bulletin',
+            'TEST ELECTRICITY MARGIN NOTICE': 'Unclassified bulletin',
+        }
+        for kind, category in expected.items():
+            with self.subTest(kind=kind):
+                rows = parse({'data': [dict(publishTime='2026-11-03T12:00:00Z',
+                    warningType=kind, warningText='Demand control imminent; cancelled; active') ]})
+                sample = {'fetched': NOW, 'items': rows}
+                self.assertEqual(card(sample, NOW)['category'], category)
+                self.assertEqual(persistent_alerts(sample, NOW), [])
+                self.assertEqual(persistent_alerts({**sample, 'failed': True}, NOW), [])
+        self.assertEqual(classify('  electricity   margin notice ')[0], 'Margin notice')
+
+    def test_topic_survives_lifecycle_without_becoming_active(self):
+        # Synthetic lifecycle reflects the July 8–9 official EMN sequence:
+        # issue, two updates, cancellation, all with the same warningType.
+        records = [dict(publishTime='2026-07-09T%02d:00:00Z' % hour,
+                        warningType='ELECTRICITY MARGIN NOTICE', warningText=body)
+                   for hour, body in [(8, 'Synthetic issue'), (12, 'Synthetic update'),
+                                      (16, 'Synthetic update'), (18, 'Synthetic cancellation')]]
+        now = stamp('2026-07-09T19:00:00Z')
+        for count in range(1, 5):
+            sample = {'fetched': now, 'items': parse({'data': records[:count]})}
+            self.assertEqual(card(sample, now)['category'], 'Margin notice')
+            self.assertEqual(persistent_alerts(sample, now), [])
+        self.assertIn('cancellation', card(sample, now)['detail'])
+        self.assertEqual(card(sample, NOW)['category'], 'No bulletin')
+        sample['items'][0]['title'] = 'CANCELLATION'
+        sample['items'][0]['text'] = 'See previous notification'
+        self.assertIn('cancellation', card(sample, now)['detail'])
 
     def test_malformed_fails_closed(self):
         for payload in ({},{'data':None},{'data':[{}]}, {'data':[{'warningType':'X','warningText':'text','publishTime':'2026-11-03'}]}):
@@ -133,8 +172,21 @@ class GridDisplayTests(unittest.TestCase):
             self.assertIn('GRID / CHECKED',words)
             self.assertIn('UK THREAT / SEVERE',words)
             self.assertIn('Wi-Fi --',words)
-            self.assertIn('Validity unknown / check source',words)
+            self.assertIn('Validity / active unknown',words)
+            self.assertIn('Market bulletin',words)
         self.assertEqual(image.get_size(),(480,320))
+
+    def test_companion_cancellation_and_scope_stay_above_alert_strip(self):
+        from companion import Companion
+        view = Companion()
+        records = {'data': [dict(publishTime='2026-11-03T12:00:00Z',
+            warningType='ELECTRICITY MARGIN NOTICE', warningText='Synthetic cancellation')]}
+        data = {'grid': {'fetched': NOW, 'items': parse(records)}}
+        with patch.object(view, 'text', wraps=view.text) as text:
+            view.draw(data, NOW, 53, '')
+            calls = {c.args[0]: c.args for c in text.call_args_list}
+            self.assertLess(calls['Cancellation / check source'][2], 241)
+            self.assertIn('GB system; scope unspecified', calls)
 
     def test_focused_active_path_draws_grid(self):
         import pygame

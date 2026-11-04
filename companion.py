@@ -1,4 +1,7 @@
 from terrorism import threat_details
+from camera_motion import MotionReader
+from camera_eye import draw as draw_camera_eye
+from status_summary import live_checks
 """480x320 Pygame companion, written directly to the ILI9486 framebuffer."""
 import argparse
 import datetime as dt
@@ -86,6 +89,7 @@ class Companion:
         self.activity_panel = ActivityPanel()
         self.activity = None
         self.emergency_data = {}
+        self.motion = MotionReader()
         self.space_weather = SpaceWeather()
         self.space_panel = SpaceWeatherPanel(self.space_weather)
         self.radar = None
@@ -330,6 +334,7 @@ class Companion:
             self.text('Wi-Fi unavailable',track.left+5,299,12,'muted',track.width-10)
         self.surface.set_clip(previous_clip)
         draw_emergency(self.surface,self.emergency_data,now,age)
+        draw_camera_eye(self.surface,self.motion.snapshot(now),now,(366,15),8)
         return self.surface
 
 
