@@ -162,7 +162,7 @@ class RenderTests(unittest.TestCase):
                 pygame.image.save(view.screen,str(Path(os.environ['NEXUS_RADAR_RENDER_DIR'])/'desktop.png'))
             small=Companion();small.radar=feed
             with patch.object(small,'text',wraps=small.text) as text:
-                small.draw({'threat':{'level':'MODERATE','fetched':now}},now,49,'',
+                small.draw({'threat':{'level':'MODERATE','fetched':now}},now,65,'',
                            dict(checked=now,offline=False,latency=25,colour='accent'))
                 words=[str(c.args[0]) for c in text.call_args_list]
                 self.assertIn('MODERATE',words)

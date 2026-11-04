@@ -17,6 +17,8 @@ from companion_network import NetworkMonitor, sweep_duration
 from network_activity import Activity, ActivityPanel
 from radar_outages import RadarFeed
 import radar_ui
+from grid_notices_ui import companion as draw_grid_notices
+from grid_notices import INTERVAL as GRID_INTERVAL
 
 ROOT = Path(__file__).resolve().parent
 
@@ -205,7 +207,7 @@ class Companion:
         else:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
-        for slot,x,sources,offset in (('local',14,('weather','floods','network','radar'),0),
+        for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar'),0),
                                       ('news',247,('ncsc','news'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
@@ -214,6 +216,9 @@ class Companion:
             if source=='radar':
                 sample=self.radar.snapshot(now) if self.radar else {}
                 radar_ui.companion(self,sample,phase,x)
+                continue
+            if source=='grid':
+                draw_grid_notices(self,data.get('grid'),now,phase,x)
                 continue
             if source=='network':
                 state=self.activity.snapshot() if self.activity else {}
@@ -325,6 +330,12 @@ def refresh_overdue(cache, config, attempted, now):
         if due and now-attempted.get(name, float('-inf')) >= 300:
             attempted[name] = now
             feeds.refresh(name)
+
+    # The source-specific cache enforces retry spacing across process restarts.
+    grid = data.get('grid')
+    if (not grid or now-grid.get('attempted',0)>=GRID_INTERVAL) and now-attempted.get('grid',float('-inf'))>=GRID_INTERVAL:
+        attempted['grid']=now
+        feeds.refresh('grid')
 
 
 def fallback_worker(cache, config):
