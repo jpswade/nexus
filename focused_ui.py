@@ -1,3 +1,4 @@
+from terrorism import threat_details
 from status_summary import live_checks
 from emergency_alerts_ui import desktop as draw_emergency
 from space_weather import SpaceWeather, LINKS as SPACE_LINKS
@@ -141,10 +142,13 @@ class FocusedDesktop:
 
         self.panel(28,521,284,121,'NATIONAL CONTEXT')
         threat=uk.get('threat')
-        self.text('UK terrorism assessment',44,558,12,DIM)
-        self.text(threat.get('level','Unknown') if threat else 'Unavailable',44,581,22,TEXT,True)
-        self.text(self.status('threat',uk,uk_errors,now,UK_AGES),44,617,10,DIM)
-        self.register((28,521,284,121),LINKS['threat'])
+        disagree=bool(threat and threat.get('disagreement'))
+        self.text('UK terrorism / SOURCES DIFFER' if disagree else 'UK terrorism assessment',44,552,12,AMBER if disagree else DIM)
+        self.text('DISAGREEMENT' if disagree else threat.get('level','Unknown') if threat else 'Unavailable',44,573,22,TEXT,True)
+        source,checked=threat_details(threat,now,'threat' in uk_errors)
+        self.text(source,44,603,10,AMBER if disagree else DIM)
+        self.text(checked,44,621,10,DIM)
+        self.register((28,521,284,121),(threat or {}).get('url',LINKS['threat']))
 
         self.panel(928,105,324,268,'PHP PRIORITY','ALWAYS VISIBLE')
         priority=php['priority']
