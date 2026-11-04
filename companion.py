@@ -28,6 +28,8 @@ from radar_outages import RadarFeed
 import radar_ui
 from grid_notices_ui import companion as draw_grid_notices
 from grid_notices import INTERVAL as GRID_INTERVAL
+from govuk_briefings import INTERVAL as GOVUK_INTERVAL
+from govuk_briefings_ui import companion as draw_govuk
 
 ROOT = Path(__file__).resolve().parent
 
@@ -235,11 +237,14 @@ class Companion:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
         for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar','space'),0),
-                                      ('news',247,('ncsc','news','health'),6)):
+                                      ('news',247,('ncsc','news','health','govuk'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
             if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
                 source='news'
+            if source=='govuk':
+                draw_govuk(self,data.get('govuk'),now,phase,x)
+                continue
             if source=='health':
                 selected=HEADERS[int(phase//48)%len(HEADERS)]
                 name,url,caveat,state,attempted,successful,events=describe(
@@ -380,6 +385,11 @@ def refresh_overdue(cache, config, attempted, now):
     if (not grid or now-grid.get('attempted',0)>=GRID_INTERVAL) and now-attempted.get('grid',float('-inf'))>=GRID_INTERVAL:
         attempted['grid']=now
         feeds.refresh('grid')
+
+    govuk = data.get('govuk')
+    if (not govuk or now-govuk.get('attempted',0)>=GOVUK_INTERVAL) and now-attempted.get('govuk',float('-inf'))>=GOVUK_INTERVAL:
+        attempted['govuk']=now
+        feeds.refresh('govuk')
 
 
 def fallback_worker(cache, config):

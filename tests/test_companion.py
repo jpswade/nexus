@@ -34,7 +34,7 @@ class RefreshFallbackTests(unittest.TestCase):
         with patch('companion.PreparednessFeeds') as factory:
             feeds = factory.return_value
             feeds.snapshot.return_value = ({**{name: {'fetched': 10000} for name in INTERVALS},
-                                             'grid': {'attempted': 10000}}, set())
+                                             'grid': {'attempted': 10000}, 'govuk': {'attempted': 10000}}, set())
             refresh_overdue(None, {}, {}, 10001)
             feeds.refresh.assert_not_called()
 
@@ -44,7 +44,7 @@ class RefreshFallbackTests(unittest.TestCase):
             feeds = factory.return_value
             feeds.snapshot.return_value = ({}, set())
             refresh_overdue(None, {}, attempted, 10000)
-            self.assertEqual([call.args[0] for call in feeds.refresh.call_args_list], ['threat', 'weather', 'floods', 'ncsc', 'news', 'grid'])
+            self.assertEqual([call.args[0] for call in feeds.refresh.call_args_list], ['threat', 'weather', 'floods', 'ncsc', 'news', 'grid', 'govuk'])
             feeds.refresh.reset_mock()
             refresh_overdue(None, {}, attempted, 10030)
             feeds.refresh.assert_not_called()

@@ -197,3 +197,7 @@ The preparedness cyber panel uses CISA’s Known Exploited Vulnerabilities catal
 CVE cards show CVSS base scores from the NVD API, preferring v4.0 then v3.1/v3.0 and the primary assessor within that version. The stream names the assessor. Scores refresh every six hours; failed lookups retain labelled cached scores, and absent scores are explicit.
 
 Network activity now rotates through the companion's local panel and alternates with the main local map. It shows this Pi's non-loopback RX/TX rates, driver-reported Wi-Fi signal history, bounded gateway/internet probes and a DNS lookup check. Signal variation is not interpreted as movement or occupancy. No packet capture, device scanning or tracking is enabled. Missing readings remain unavailable; counter resets do not create traffic spikes.
+
+[Official GOV.UK service-disruption briefings](docs/govuk-briefings.md) add filtered,
+dated seven-day briefings to both displays, with source links on HDMI and explicit
+stale/unavailable states. They do not alter official threat levels.
