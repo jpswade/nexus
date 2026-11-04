@@ -1,5 +1,6 @@
 """UK public-source preparedness feeds; never synthesises a threat score."""
 from grid_notices import GridNotices
+from govuk_briefings import GovukBriefings
 import datetime as dt
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -229,6 +230,7 @@ def build_sources(config):
 class PreparednessFeeds:
     def __init__(self, directory, config):
         self.grid = GridNotices(directory)
+        self.govuk = GovukBriefings(directory)
         self.urls, self.weather_scope, self.flood_scope = build_sources(config)
         # A changed location/region must not reuse the old location's cache.
         identity = hashlib.sha256(json.dumps(self.urls, sort_keys=True).encode()).hexdigest()[:16]
@@ -256,14 +258,21 @@ class PreparednessFeeds:
         if grid:
             data['grid'] = grid
             if grid.get('failed'): errors.add('grid')
+        govuk = self.govuk.snapshot()
+        if govuk:
+            data['govuk'] = govuk
+            if govuk.get('failed'): errors.add('govuk')
         return data, errors
 
     def start(self):
         self.grid.start()
+        self.govuk.start()
         for name in self.urls:
             threading.Thread(target=self._worker, args=(name,), daemon=True).start()
 
     def refresh(self, name):
+        if name == 'govuk':
+            return self.govuk.refresh()
         if name == 'grid':
             return self.grid.refresh()
         try:

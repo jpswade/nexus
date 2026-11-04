@@ -1,0 +1,174 @@
+{
+  "results": [
+    {
+      "title": "Synthetic power outage: public advice",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-power-outage",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Synthetic water emergency: do not drink supply",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-0",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Synthetic rail disruption after storm",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-1",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Synthetic major incident at hospital",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-2",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Investment in emergency energy resilience",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-3",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Minister speech on water emergency",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-4",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Emergency power exercise begins",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-5",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Funding announced after rail disruption",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-6",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "New energy strategy",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-7",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Chair appointed to water emergency board",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-8",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Routine transport statistics",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-9",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    },
+    {
+      "title": "Emergency water supplies overseas",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-power-outage",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "news_story",
+      "organisations": [
+        {
+          "slug": "foreign-commonwealth-development-office",
+          "title": "FCDO"
+        }
+      ]
+    },
+    {
+      "title": "Emergency energy policy speech",
+      "description": "Electricity supplies disrupted in a UK region. Synthetic test fixture only.",
+      "link": "/government/news/synthetic-power-outage",
+      "public_timestamp": "2026-11-04T10:00:00Z",
+      "format": "speech",
+      "organisations": [
+        {
+          "slug": "cabinet-office",
+          "title": "Cabinet Office"
+        }
+      ]
+    }
+  ],
+  "total": 13
+}

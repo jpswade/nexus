@@ -6,6 +6,7 @@ from network_activity import Activity, ActivityPanel
 from radar_outages import RadarFeed
 import radar_ui
 from grid_notices_ui import desktop as draw_grid_notices
+from govuk_briefings_ui import desktop as draw_govuk
 """Calm, original-style NEXUS: stable sidebars and one central subject."""
 import datetime as dt
 import math
@@ -341,7 +342,10 @@ class FocusedDesktop:
             connection=self.network_activity.snapshot().get('connection',{})
             radar_ui.desktop(self,self.radar.snapshot(now,offline=connection.get('offline',False)),seconds)
         if workspace==0 and profile=='uk' and int(seconds//16)%4==3:
-            draw_grid_notices(self,uk.get('grid'),now,seconds)
+            if int(seconds//8)%2:
+                draw_govuk(self,uk.get('govuk'),now,seconds)
+            else:
+                draw_grid_notices(self,uk.get('grid'),now,seconds)
         show=manual_terminal or (not terminal_hidden and automatic_brief(workspace,age,self.changes,now))
         fresh=show and not self.terminal_visible
         self.terminal_visible=show
