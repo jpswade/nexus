@@ -15,6 +15,8 @@ from terminal_theme import PALETTE
 from alert_state import AlertState
 from companion_network import NetworkMonitor, sweep_duration
 from network_activity import Activity, ActivityPanel
+from space_weather import SpaceWeather
+from space_weather_ui import SpaceWeatherPanel
 from radar_outages import RadarFeed
 import radar_ui
 from grid_notices_ui import companion as draw_grid_notices
@@ -80,6 +82,8 @@ class Companion:
         self.tiles = {}
         self.activity_panel = ActivityPanel()
         self.activity = None
+        self.space_weather = SpaceWeather()
+        self.space_panel = SpaceWeatherPanel(self.space_weather)
         self.radar = None
 
     def face(self, size):
@@ -207,12 +211,15 @@ class Companion:
         else:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
-        for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar'),0),
+        for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar','space'),0),
                                       ('news',247,('ncsc','news'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
             if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
                 source='news'
+            if source=='space':
+                self.surface.blit(self.space_panel.draw((225,148),now,age),(x,110))
+                continue
             if source=='radar':
                 sample=self.radar.snapshot(now) if self.radar else {}
                 radar_ui.companion(self,sample,phase,x)
@@ -360,6 +367,7 @@ def main():
     if not args.snapshot:view.radar.start()
     target = None if args.snapshot else Framebuffer(args.device or find_lcd())
     if not args.snapshot:
+        view.space_weather.start()
         threading.Thread(target=fallback_worker, args=(cache, config), daemon=True).start()
     network = NetworkMonitor()
     view.activity = Activity(network)
