@@ -1,4 +1,7 @@
 from source_details import HEADERS, describe
+from terrorism import threat_details
+from camera_motion import MotionReader
+from camera_eye import draw as draw_camera_eye
 from status_summary import live_checks
 from emergency_alerts_ui import desktop as draw_emergency
 from space_weather import SpaceWeather, LINKS as SPACE_LINKS
@@ -38,6 +41,7 @@ class FocusedDesktop:
         if not preview:self.space_weather.start()
         self.radar=RadarFeed()
         if not preview:self.radar.start()
+        self.motion=MotionReader()
         self.preview=preview
         self.screen=screen
         self.width,self.height=screen.get_size()
@@ -176,10 +180,13 @@ class FocusedDesktop:
 
         self.panel(28,521,284,121,'NATIONAL CONTEXT')
         threat=uk.get('threat')
-        self.text('UK terrorism assessment',44,558,12,DIM)
-        self.text(threat.get('level','Unknown') if threat else 'Unavailable',44,581,22,TEXT,True)
-        self.text(self.status('threat',uk,uk_errors,now,UK_AGES),44,617,10,DIM)
-        self.register((28,521,284,121),LINKS['threat'])
+        disagree=bool(threat and threat.get('disagreement'))
+        self.text('UK terrorism / SOURCES DIFFER' if disagree else 'UK terrorism assessment',44,552,12,AMBER if disagree else DIM)
+        self.text('DISAGREEMENT' if disagree else threat.get('level','Unknown') if threat else 'Unavailable',44,573,22,TEXT,True)
+        source,checked=threat_details(threat,now,'threat' in uk_errors)
+        self.text(source,44,603,10,AMBER if disagree else DIM)
+        self.text(checked,44,621,10,DIM)
+        self.register((28,521,284,121),(threat or {}).get('url',LINKS['threat']))
 
         self.panel(928,105,324,268,'PHP PRIORITY','ALWAYS VISIBLE')
         priority=php['priority']
@@ -385,6 +392,7 @@ class FocusedDesktop:
         self.links=[entry for entry in self.links if not entry[1].startswith("https://www.gov.uk/alerts/")]
         draw_emergency(self,self.emergency_data,now,seconds)
         if self.source_detail:self.source_panel(uk,now)
+        draw_camera_eye(self.target,self.motion.snapshot(now),now,self.point(208,35),max(6,round(12*self.scale)))
 
     @staticmethod
     def orbit_label(planet,errors,now):

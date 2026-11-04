@@ -1,6 +1,7 @@
 """UK public-source preparedness feeds; never synthesises a threat score."""
 from grid_notices import GridNotices
 from source_history import History
+from terrorism import MI5_URL, parse_assessment
 import datetime as dt
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -95,14 +96,12 @@ def parse_feed(name, raw):
                 'catalogue':True}
     if name == 'threat':
         parts = raw['details']['parts']
-        body = next(p['body'] for p in parts if p['slug'] == 'terrorism-threat-levels')
-        content = plain(body)
-        # Match the UK sentence only, never the NI-specific level or definitions.
-        match = re.search(r'The threat to the UK\s*\(England, Wales, Scotland and Northern Ireland\)\s*from terrorism is\s+(low|moderate|substantial|severe|critical)\b', content, re.I)
-        if not match:
-            raise ValueError('National threat sentence changed; do not guess')
-        return {'level': match.group(1).upper(), 'updated': raw.get('public_updated_at'),
-                'url': LINKS[name]}
+        bodies = [p['body'] for p in parts if p['slug'] == 'terrorism-threat-levels']
+        if len(bodies) != 1:
+            raise ValueError('Missing or ambiguous national guide part')
+        body = bodies[0]
+        return {'level': parse_assessment(body), 'updated': raw.get('public_updated_at'),
+                'url': LINKS[name], 'source_name': 'GOV.UK'}
     if name == 'floods':
         if not isinstance(raw.get('items'), list):
             raise ValueError('Missing flood items')
@@ -241,7 +240,7 @@ class PreparednessFeeds:
         for name, url in self.urls.items():
             try:
                 sample = json.loads((self.directory/f'{name}.json').read_text())
-                if sample['source'] != url or not math.isfinite(float(sample['fetched'])):
+                if sample['source'] not in ((url, MI5_URL) if name == 'threat' else (url,)) or not math.isfinite(float(sample['fetched'])):
                     continue
                 if name == 'threat' and sample['level'].lower() not in LEVELS:
                     continue
@@ -250,6 +249,27 @@ class PreparednessFeeds:
                 self.data[name] = sample
             except (OSError, ValueError, KeyError, TypeError):
                 pass
+
+        # Persist failure separately: retain the successful sample byte-for-byte.
+        try:
+            status = json.loads((self.directory/'threat-status.json').read_text())
+            if status['failed'] and status['attempted'] >= self.data.get('threat', {}).get('fetched', 0):
+                self.errors.add('threat')
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+
+    def _threat_status(self, failed):
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', dir=self.directory, prefix='threat-status.',
+                                             suffix='.tmp', delete=False) as handle:
+                temporary = Path(handle.name)
+                json.dump({'failed': failed, 'attempted': time.time()}, handle)
+            try:
+                temporary.replace(self.directory/'threat-status.json')
+            finally:
+                temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def snapshot(self):
         with self.lock:
@@ -270,13 +290,12 @@ class PreparednessFeeds:
             return self.grid.refresh()
         attempted = time.time()
         try:
-            request = urllib.request.Request(self.urls[name], headers={'User-Agent': 'NexusPreparedness/1.0', 'Accept': '*/*'})
-            with urllib.request.urlopen(request, timeout=25) as response:
-                payload = response.read(4_194_305)
-            if len(payload) > 4_194_304:
-                raise ValueError('Oversized feed')
-            raw = json.loads(payload) if name in ('threat', 'floods', 'news') else payload
-            result = {**parse_feed(name, raw), 'fetched': time.time(), 'source': self.urls[name]}
+            if name == 'threat':
+                result = self._threat()
+            else:
+                payload = self._read(self.urls[name])
+                raw = json.loads(payload) if name in ('floods', 'news') else payload
+                result = {**parse_feed(name, raw), 'fetched': time.time(), 'source': self.urls[name]}
             if name == 'news':
                 enrich_scores(result, self.data.get(name), time.time())
             with self.lock:
@@ -295,13 +314,43 @@ class PreparednessFeeds:
             except OSError:
                 pass
             self.history.record(name, attempted, result)
+            if name == 'threat':
+                self._threat_status(False)
             return True
         except Exception:
             with self.lock:
                 self.errors.add(name)
             self.history.record(name, attempted)
+            if name == 'threat':
+                self._threat_status(True)
             print(f'{name}: UK feed unavailable; retaining last verified data', flush=True)
             return False
+
+    @staticmethod
+    def _read(url):
+        request = urllib.request.Request(url, headers={'User-Agent': 'NexusPreparedness/1.0', 'Accept': '*/*'})
+        with urllib.request.urlopen(request, timeout=25) as response:
+            payload = response.read(4_194_305)
+        if len(payload) > 4_194_304:
+            raise ValueError('Oversized feed')
+        return payload
+
+    def _threat(self):
+        observations = {}
+        # Check both each cycle to expose disagreement, never rank or average them.
+        for name, url in (('GOV.UK', self.urls['threat']), ('MI5', MI5_URL)):
+            try:
+                payload = self._read(url)
+                sample = (parse_feed('threat', json.loads(payload)) if name == 'GOV.UK' else
+                          {'level': parse_assessment(payload.decode('utf-8'), mi5=True), 'url': MI5_URL})
+                observations[name] = {**sample, 'source': url, 'source_name': name, 'fetched': time.time()}
+            except Exception:
+                continue
+        if not observations:
+            raise ValueError('Neither official national assessment could be read')
+        selected = observations.get('GOV.UK') or observations['MI5']
+        return {**selected, 'observations': observations,
+                'disagreement': len({row['level'] for row in observations.values()}) > 1}
 
     def _worker(self, name):
         while True:
