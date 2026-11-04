@@ -15,39 +15,34 @@ with open(sys.argv[1]) as source:
 assert -90 <= float(config['latitude']) <= 90, 'Invalid latitude'
 assert -180 <= float(config['longitude']) <= 180, 'Invalid longitude'
 CHECK
-/usr/bin/python3 -m py_compile "$SOURCE/dashboard.py"
+# Compile every runtime module in memory before changing the installation.
+/usr/bin/python3 - "$SOURCE" <<'CHECK'
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+paths = list(root.glob('*.py'))
+for package in ('pi_dashboard', 'plugins'):
+    paths.extend((root / package).rglob('*.py'))
+for path in paths:
+    compile(path.read_bytes(), str(path), 'exec')
+CHECK
 mkdir -p "$DEST" "$HOME/.config/systemd/user" "$HOME/.config/autostart"
 if [ -f "$DEST/dashboard.py" ]; then
     cp "$DEST/dashboard.py" "$DEST/dashboard.backup-$(date +%Y%m%d-%H%M%S).py"
 fi
-cp "$SOURCE/dashboard.py" "$DEST/dashboard.py"
-cp "$SOURCE/feeds.py" "$DEST/feeds.py"
-cp "$SOURCE/security.py" "$SOURCE/security_ui.py" "$SOURCE/workspaces.py" "$SOURCE/preparedness.py" "$SOURCE/preparedness_ui.py" "$DEST/"
-cp "$SOURCE/warning_led.py" "$DEST/"
+# Root Python files are runtime modules; include new policy/renderers automatically.
+# This deliberately excludes private JSON configuration and acceptance fixtures.
+cp "$SOURCE/"*.py "$DEST/"
 cp "$SOURCE/scripts/enable-warning-led.sh" "$DEST/"
 cp "$SOURCE/deploy/nexus-warning-led.service" "$HOME/.config/systemd/user/"
-cp "$SOURCE/alert_state.py" "$DEST/"
-cp "$SOURCE/emergency_alerts.py" "$SOURCE/emergency_alerts_ui.py" "$DEST/"
-cp "$SOURCE/grid_notices.py" "$SOURCE/grid_notices_ui.py" "$SOURCE/govuk_briefings.py" "$SOURCE/govuk_briefings_ui.py" "$DEST/"
-cp "$SOURCE/focused_ui.py" "$SOURCE/focused_state.py" "$DEST/"
-cp "$SOURCE/network_activity.py" "$DEST/"
-cp "$SOURCE/space_weather.py" "$SOURCE/space_weather_ui.py" "$DEST/"
 mkdir -p "$DEST/docs"
 cp "$SOURCE/docs/space-weather.md" "$DEST/docs/"
-cp "$SOURCE/radar_outages.py" "$SOURCE/radar_ui.py" "$DEST/"
-cp "$SOURCE/live_telemetry.py" "$DEST/"
-cp "$SOURCE/animated_visuals.py" "$DEST/"
-cp "$SOURCE/observatory_globe.py" "$DEST/"
-cp "$SOURCE/uk_map.py" "$DEST/"
 mkdir -p "$DEST/data"
 cp "$SOURCE/data/uk-map.geojson" "$DEST/data/"
-cp "$SOURCE/status_summary.py" "$SOURCE/terrorism.py" "$SOURCE/source_history.py" "$SOURCE/source_details.py" "$DEST/"
-cp "$SOURCE/camera_motion.py" "$SOURCE/camera_eye.py" "$DEST/"
 cp "$SOURCE/deploy/nexus-camera-motion.service" "$HOME/.config/systemd/user/"
-cp "$SOURCE/companion.py" "$SOURCE/companion_network.py" "$DEST/"
 cp "$SOURCE/scripts/enable-companion-boot.sh" "$DEST/"
 cp "$SOURCE/deploy/nexus-companion.service" "$HOME/.config/systemd/user/"
-cp "$SOURCE/launch.py" "$SOURCE/terminal_theme.py" "$SOURCE/bitmap_font.py" "$SOURCE/cyber_graphics.py" "$SOURCE/home.example.json" "$DEST/"
+cp "$SOURCE/home.example.json" "$DEST/"
 cp -R "$SOURCE/pi_dashboard" "$SOURCE/plugins" "$SOURCE/assets" "$DEST/"
 mkdir -p "$DEST/data"
 cp "$SOURCE/data/land.json" "$DEST/data/land.json"
