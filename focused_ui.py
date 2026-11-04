@@ -1,3 +1,4 @@
+from emergency_alerts_ui import desktop as draw_emergency
 from space_weather import SpaceWeather, LINKS as SPACE_LINKS
 from space_weather_ui import SpaceWeatherPanel
 from network_activity import Activity, ActivityPanel
@@ -29,6 +30,7 @@ class FocusedDesktop:
         self.network_activity=Activity()
         self.network_panel=ActivityPanel()
         if not preview:self.network_activity.start()
+        self.emergency_data={}
         self.space_weather=SpaceWeather()
         self.space_panel=SpaceWeatherPanel(self.space_weather)
         if not preview:self.space_weather.start()
@@ -343,6 +345,9 @@ class FocusedDesktop:
         fresh=show and not self.terminal_visible
         self.terminal_visible=show
         if show:self.terminal(now,security,sec_errors,workspace,age,manual_terminal,fresh)
+        # Drop previous dynamic links; keep the persistent card above animated views.
+        self.links=[entry for entry in self.links if not entry[1].startswith("https://www.gov.uk/alerts/")]
+        draw_emergency(self,self.emergency_data,now,seconds)
 
     @staticmethod
     def orbit_label(planet,errors,now):

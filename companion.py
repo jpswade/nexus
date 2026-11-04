@@ -13,6 +13,8 @@ import pygame
 from preparedness import score_label, display_items, article_date, PreparednessFeeds, MAX_AGES, INTERVALS
 from terminal_theme import PALETTE
 from alert_state import AlertState
+from emergency_alerts import EmergencyAlerts
+from emergency_alerts_ui import companion as draw_emergency
 from companion_network import NetworkMonitor, sweep_duration
 from network_activity import Activity, ActivityPanel
 from space_weather import SpaceWeather
@@ -82,6 +84,7 @@ class Companion:
         self.tiles = {}
         self.activity_panel = ActivityPanel()
         self.activity = None
+        self.emergency_data = {}
         self.space_weather = SpaceWeather()
         self.space_panel = SpaceWeatherPanel(self.space_weather)
         self.radar = None
@@ -324,6 +327,7 @@ class Companion:
         else:
             self.text('Wi-Fi unavailable',track.left+5,299,12,'muted',track.width-10)
         self.surface.set_clip(previous_clip)
+        draw_emergency(self.surface,self.emergency_data,now,age)
         return self.surface
 
 
@@ -363,6 +367,7 @@ def main():
         raise ValueError('companion_rotation must be 0 or 180 degrees')
     cache = Path(os.environ.get('NEXUS_CACHE', ROOT/'.cache'))/'preparedness'
     view = Companion()
+    emergency = EmergencyAlerts(cache)
     view.radar = RadarFeed()
     if not args.snapshot:view.radar.start()
     target = None if args.snapshot else Framebuffer(args.device or find_lcd())
@@ -372,6 +377,7 @@ def main():
     network = NetworkMonitor()
     view.activity = Activity(network)
     if not args.snapshot:
+        emergency.start()
         network.start()
         view.activity.start()
     frame_clock = pygame.time.Clock()
@@ -384,6 +390,7 @@ def main():
                 feeds = PreparednessFeeds(cache, config)
                 data, _ = feeds.snapshot()
                 refreshed = age
+            view.emergency_data = emergency.snapshot()
             surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot())
             if rotation == 180:
                 surface = pygame.transform.rotate(surface, 180)
