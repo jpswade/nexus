@@ -1,3 +1,4 @@
+from source_details import HEADERS, describe
 from terrorism import threat_details
 from camera_motion import MotionReader
 from camera_eye import draw as draw_camera_eye
@@ -89,6 +90,7 @@ class Companion:
         self.activity_panel = ActivityPanel()
         self.activity = None
         self.emergency_data = {}
+        self.source_records = {}
         self.motion = MotionReader()
         self.space_weather = SpaceWeather()
         self.space_panel = SpaceWeatherPanel(self.space_weather)
@@ -190,7 +192,9 @@ class Companion:
             self.text('REPEATED PROBE FAILURES',66,210,22,'muted',350)
             self.text('RETRYING',180,254,20,colour,160)
             return self.surface
-        alerts=self.alerts.update(data,(),now)
+        failed_sources={name for name,record in self.source_records.items() if record.get('failed')}
+        errors=set(errors)|failed_sources
+        alerts=self.alerts.update(data,errors,now)
         # The whole masthead is the assessment, with a single compact clock.
         threat=data.get('threat');level=threat['level'].upper() if threat else 'UNKNOWN'
         stale=not threat or 'threat' in errors or now-threat['fetched']>MAX_AGES['threat']
@@ -217,7 +221,7 @@ class Companion:
 
         weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
         warning=max(wa,key=lambda a:a['rank'],default=None)
-        weather_stale=not weather or now-weather['fetched']>MAX_AGES['weather']
+        weather_stale='weather' in failed_sources or not weather or now-weather['fetched']>MAX_AGES['weather']
         label=weather_label(warning,weather) if warning else None
         wf,wi=self.weather_style(label)
         pygame.draw.rect(self.surface,wf or PALETTE['panel'],(14,70,458,34))
@@ -231,11 +235,23 @@ class Companion:
             self.text('WX',427,77,18,'muted',40)
         # Independent channels: local conditions on the left, news on the right.
         for slot,x,sources,offset in (('local',14,('weather','floods','network','grid','radar','space'),0),
-                                      ('news',247,('ncsc','news'),6)):
+                                      ('news',247,('ncsc','news','health'),6)):
             phase=age+offset
             source=sources[int(phase/16)%len(sources)]
             if source=='ncsc' and not display_items('ncsc',data.get('ncsc'),now):
                 source='news'
+            if source=='health':
+                selected=HEADERS[int(phase//48)%len(HEADERS)]
+                name,url,caveat,state,attempted,successful,events=describe(
+                    selected,self.source_records,data,self.emergency_data,now)
+                self.box((x,110,225,148),name,ink='accent')
+                self.text(state,x+9,137,22,'accent',207)
+                self.text(attempted,x+9,169,12,'muted',207)
+                self.text(successful,x+9,190,12,'muted',207)
+                changed=next((e for e in reversed(events) if e['kind']=='changed'),None)
+                self.text('Changed '+dt.datetime.fromtimestamp(changed['time']).strftime('%d %b %H:%M') if changed else 'No retained changes',x+9,212,14,'text',207)
+                self.text('Feed health / not Pi link',x+9,230,10,'muted',207)
+                continue
             if source=='space':
                 self.surface.blit(self.space_panel.draw((225,148),now,age),(x,110))
                 continue
@@ -406,6 +422,8 @@ def main():
                 # Read the main dashboard's cache, without duplicate network requests.
                 feeds = PreparednessFeeds(cache, config)
                 data, errors = feeds.snapshot()
+                from source_history import History
+                view.source_records={name: History(feeds.directory if name in ('weather','floods') else cache).read(name,time.time()) for name in HEADERS}
                 refreshed = age
             view.emergency_data = emergency.snapshot()
             surface = view.draw(data, time.time(), age, feeds.flood_scope, network.snapshot(), errors)

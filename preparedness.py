@@ -1,5 +1,6 @@
 """UK public-source preparedness feeds; never synthesises a threat score."""
 from grid_notices import GridNotices
+from source_history import History
 from terrorism import MI5_URL, parse_assessment
 import datetime as dt
 from zoneinfo import ZoneInfo
@@ -233,6 +234,7 @@ class PreparednessFeeds:
         identity = hashlib.sha256(json.dumps(self.urls, sort_keys=True).encode()).hexdigest()[:16]
         self.directory = Path(directory)/identity
         self.directory.mkdir(parents=True, exist_ok=True)
+        self.history = History(self.directory)
         self.lock = threading.Lock()
         self.data, self.errors = {}, set()
         for name, url in self.urls.items():
@@ -286,6 +288,7 @@ class PreparednessFeeds:
     def refresh(self, name):
         if name == 'grid':
             return self.grid.refresh()
+        attempted = time.time()
         try:
             if name == 'threat':
                 result = self._threat()
@@ -310,12 +313,14 @@ class PreparednessFeeds:
                     temporary.unlink(missing_ok=True)
             except OSError:
                 pass
+            self.history.record(name, attempted, result)
             if name == 'threat':
                 self._threat_status(False)
             return True
         except Exception:
             with self.lock:
                 self.errors.add(name)
+            self.history.record(name, attempted)
             if name == 'threat':
                 self._threat_status(True)
             print(f'{name}: UK feed unavailable; retaining last verified data', flush=True)
