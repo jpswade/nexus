@@ -3,7 +3,7 @@ from source_details import HEADERS
 from terrorism import threat_details
 from camera_motion import MotionReader
 from camera_eye import draw as draw_camera_eye
-from status_summary import live_checks
+from status_summary import live_checks, status_board
 import argparse
 import datetime as dt
 import json
@@ -197,38 +197,9 @@ class Companion:
               'SEVERE':'#e6a23c','CRITICAL':'#ef6262'}.get(level,'#203640')
         if disagree: fill='#e6a23c'
         ink='text' if level=='UNKNOWN' else '#081116'
-        pygame.draw.rect(self.surface,fill,(0,0,480,66))
+        pygame.draw.rect(self.surface,fill,(0,0,480,27))
         self.text('UK THREAT / '+('SOURCES DIFFER' if disagree else level)+(' / STALE' if stale else ''),14,3,18,ink,345)
         self.text(dt.datetime.fromtimestamp(now).strftime('%H:%M'),382,2,25,ink,94)
-        source,checked=threat_details(threat,now,'threat' in errors)
-        if disagree:
-            self.text(source,14,29,13,ink,458)
-            self.text(checked,14,47,12,ink,458)
-        else:
-            self.text(source,14,29,13,ink,458)
-            self.text(checked,14,47,12,ink,458)
-
-        weather=data.get('weather');wa=[a for a in alerts if a['source']=='weather']
-        warning=max(wa,key=lambda a:a['rank'],default=None)
-        weather_stale='weather' in failed_sources or not weather or now-weather['fetched']>MAX_AGES['weather']
-        label=weather_label(warning,weather) if warning else None
-        wf,wi=self.weather_style(label)
-        pygame.draw.rect(self.surface,wf or PALETTE['panel'],(14,70,458,34))
-        status=(label+' / '+('UPCOMING' if warning['detail'].startswith('UPCOMING') else 'WARNING')) if warning else 'NO ACTIVE WARNINGS'
-        if weather_stale:
-            status=(label+' / STALE') if warning else 'WARNINGS / STALE' if weather else 'WARNINGS / UNAVAILABLE'
-        self.text(status,22,70,18,wi,373)
-        if warning:
-            self.weather_icon(warning['title'],418,77,age,wi)
-        else:
-            self.text('WX',427,77,18,'muted',40)
-        # Compact checks are always visible, including during source disagreement.
-        checks=live_checks(data,self.emergency_data,now,errors,alerts)
-        pygame.draw.rect(self.surface,PALETTE['panel'],(14,92,458,16))
-        for i,(name,value,state) in enumerate(checks[:2]+checks[3:]):
-            x=14+i*153
-            tone='warning' if state in ('alert','stale') else 'accent' if state=='ok' else 'muted'
-            self.text(name+' '+value,x,93,10,PALETTE.get(tone,'#e6a23c'),150)
         card = None
         if self.policy is not None:
             if getattr(self,'cards_tick',None) != int(now):
@@ -239,9 +210,25 @@ class Companion:
                            'space': self.space_weather.snapshot(now),
                            'radar': self.radar.snapshot(now) if self.radar else {},
                            'location': self.context.get('location') if isinstance(self.context.get('location'),dict) else {'floods_scope':scope}, 'uk_errors':errors}
+                self.status_context=context
                 self.cards=self.policy.build_cards(context, now)
             pinned=[c for c in self.cards if c['pinned'] and c['duration']>0]
             card = self.rotation.select(pinned or self.cards, now)
+        context=getattr(self,'status_context',dict(uk=data,emergency=self.emergency_data,uk_errors=errors))
+        rows={r['id']:r for r in status_board(context,now)}
+        space=[rows[k] for k in ('G','R','S')]
+        rows['space']=dict(label='SPACE / G R S',value=' '.join(r['value'].split(' / ')[0] if r['value']!='UNKNOWN' else r['id']+'?' for r in space),state='stale' if any(r['state']=='stale' for r in space) else 'unknown' if any(r['state']=='unknown' for r in space) else 'alert' if any(r['state']=='alert' for r in space) else 'ok')
+        labels={'gov':'EMERGENCY','grid':'GRID','weather':'WEATHER','floods':'FLOODS','internet':'UK INTERNET','space':'SPACE / G R S','ncsc':'CYBER TODAY','govuk':'BRIEFINGS','camera':'CAMERA'}
+        for i,key in enumerate(labels):
+            row=rows[key];x=14+(i%3)*153;y=30+(i//3)*26
+            tone='#e6a23c' if row['state'] in ('alert','stale') else PALETTE['accent'] if row['state']=='ok' else PALETTE['muted']
+            if key=='weather':tone={'YELLOW':'#ead64c','AMBER':'#e6a23c','RED':'#ef6262'}.get(row['value'].split(' / ')[0],tone)
+            pygame.draw.rect(self.surface,PALETTE['panel'],(x,y,149,24))
+            pygame.draw.rect(self.surface,tone,(x,y,2,24))
+            self.text(labels[key],x+3,y,9,'muted',143)
+            value=row['value'].replace('NONE ACTIVE','NONE').replace(' REPORTS / 7D',' / 7D').replace(' BULLETINS',' NOTICES')
+            if key=='space' and row['state']=='stale':value='STALE '+value
+            self.text(value,x+3,y+10,13,tone,143)
         timing = self.rotation.timing(now) if hasattr(self.rotation, 'timing') else None
         remaining = timing[0] if isinstance(timing, tuple) and len(timing)==2 else None
         self.card_renderer.draw(self, card, age, self.policy is not None, remaining)

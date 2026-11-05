@@ -42,3 +42,34 @@ class LiveChecksTests(unittest.TestCase):
         checks=live_checks(data,emergency,100)
         self.assertEqual(checks[0],('GOV.UK','1 TEST','ok'))
         self.assertEqual(checks[1],('GRID','1 BULLETINS','ok'))
+
+class StatusBoardTests(unittest.TestCase):
+    def test_every_check_is_present_and_missing_is_not_clear(self):
+        from status_summary import status_board
+        rows={r['id']:r for r in status_board({},10000)}
+        self.assertEqual(set(rows),{'gov','grid','weather','floods','internet','G','R','S','ncsc','govuk','camera','health'})
+        self.assertTrue(all(r['state']!='ok' for r in rows.values()))
+        self.assertEqual(rows['health']['value'],'0/11 CURRENT')
+
+    def test_space_axes_are_separate_and_stale_values_are_retained(self):
+        from status_summary import status_board
+        context={'space':{'scales':{'status':'checked','rows':[{'kind':'forecast','levels':{'G':'5'}},{'kind':'observation','levels':{'G':'2','R':'0','S':None}}]}},'radar':{'status':'checked','items':[]}}
+        rows={r['id']:r for r in status_board(context,10000)}
+        self.assertEqual((rows['G']['value'],rows['G']['state']),('G2','alert'))
+        self.assertEqual((rows['R']['value'],rows['R']['state']),('R0','ok'))
+        self.assertEqual(rows['S']['state'],'unknown')
+        self.assertEqual(rows['internet']['value'],'0 REPORTS / 7D')
+        self.assertEqual(rows['internet']['state'],'info')
+        context['space']['scales']['status']='stale'
+        rows={r['id']:r for r in status_board(context,10000)}
+        self.assertEqual((rows['G']['value'],rows['G']['state']),('G2 / STALE','stale'))
+
+    def test_empty_weather_and_failed_check_remain_distinct(self):
+        from status_summary import status_board
+        context={'uk':{'weather':{'fetched':10000,'items':[]},'grid':{'fetched':10000,'items':[]}}}
+        rows={r['id']:r for r in status_board(context,10000)}
+        self.assertEqual(rows['weather']['value'],'NONE ACTIVE')
+        context['source_records']={'weather':{'failed':True},'grid':{'failed':True}}
+        rows={r['id']:r for r in status_board(context,10000)}
+        self.assertEqual(rows['weather']['state'],'stale')
+        self.assertEqual(rows['grid']['state'],'stale')

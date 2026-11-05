@@ -63,7 +63,7 @@ class DesktopRendererTests(unittest.TestCase):
         self.assertEqual(self.policy.calls[0],(0,[first,second],NOW,None))
         self.assertEqual(self.policy.calls[1],(1,[second],NOW,None))
         self.assertEqual(first['duration'],73)
-        self.assertEqual(self.ui.clicked_url((400,300)),first['url'])
+        self.assertEqual(self.ui.clicked_url((900,300)),first['url'])
         self.assertEqual(self.ui.active_url,first['url'])
 
     def test_observatory_is_manual_only_and_workspaces_pass_group(self):
@@ -132,7 +132,7 @@ class DesktopRendererTests(unittest.TestCase):
         value='word '*900+'X'*400
         warning=card(body=[value],url='https://example.com/'+'x'*200)
         self.make([warning],[warning,None]);self.draw()
-        self.assertTrue(self.ui.click_detail((100,610)));self.draw()
+        self.assertTrue(self.ui.click_detail((900,610)));self.draw()
         self.assertGreater(self.ui.renderer.page_count,1)
         seen=[]
         for page in range(self.ui.renderer.page_count):
@@ -167,8 +167,8 @@ class DesktopRendererTests(unittest.TestCase):
                 'observations':{'GOV.UK':{'level':'LOW'},'MI5':{'level':'CRITICAL'}}}
         with patch.object(self.ui,'text',wraps=self.ui.text) as text:self.draw(uk={'threat':threat})
         words=' '.join(c.args[0] for c in text.call_args_list)
-        self.assertIn('SOURCES DIFFER',words);self.assertIn('GOV.UK LOW / MI5 CRITICAL',words)
-        self.ui.click_detail((245,40));self.draw()
+        self.assertIn('SOURCES DIFFER',words);self.assertNotIn('GOV.UK LOW / MI5 CRITICAL',words)
+        self.ui.click_detail((45,120));self.draw()
         self.assertEqual(self.ui.source_detail,'gov')
         self.assertTrue(self.ui.clicked_url((370,615)).startswith('https://'))
 

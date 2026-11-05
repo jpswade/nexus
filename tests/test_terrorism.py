@@ -132,8 +132,8 @@ class DisplayTests(unittest.TestCase):
                     ui.draw(0,3,3,10001,None,False,{},set(),{'threat':sample},{'threat'},{},set())
                 labels = [str(call.args[0]) for call in text.call_args_list]
                 self.assertTrue(any('SOURCES DIFFER' in label for label in labels))
-                self.assertTrue(any('GOV.UK LOW / MI5 CRITICAL' in label for label in labels))
-                self.assertTrue(any('STALE / last OK' in label for label in labels))
+                self.assertFalse(any('GOV.UK LOW / MI5 CRITICAL' in label for label in labels))
+                self.assertTrue(any('STALE' in label for label in labels))
 
     def test_lcd_offline_takeover_precedes_assessment(self):
         import os

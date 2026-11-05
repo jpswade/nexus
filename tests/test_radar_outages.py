@@ -156,7 +156,7 @@ class RenderTests(unittest.TestCase):
             with patch.object(view,'text',wraps=view.text) as text:
                 view.draw(2,33,33,now,None,False,{},set(),{'threat':{'level':'MODERATE','fetched':now}},set(),{},set(),automatic=False)
                 words=[str(c.args[0]) for c in text.call_args_list]
-                self.assertIn('UK TERRORISM / MODERATE',words)
+                self.assertIn('UK THREAT / MODERATE',words)
                 self.assertIn('Cloudflare Radar',words)
             if os.environ.get('NEXUS_RADAR_RENDER_DIR'):
                 pygame.image.save(view.screen,str(Path(os.environ['NEXUS_RADAR_RENDER_DIR'])/'desktop.png'))

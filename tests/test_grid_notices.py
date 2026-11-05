@@ -167,7 +167,7 @@ class GridDisplayTests(unittest.TestCase):
         with patch.object(view,'text',wraps=view.text) as text:
             image=view.draw(data,NOW,49,'')
             words=[c.args[0] for c in text.call_args_list]
-            self.assertIn('GRID 3 BULLETINS',words)
+            self.assertIn('GRID',words);self.assertIn('3 NOTICES',words)
             self.assertIn('UK THREAT / SEVERE',words)
             self.assertIn('Wi-Fi --',words)
             self.assertTrue(view.card_renderer.active[0].startswith('grid:'))
