@@ -8,7 +8,7 @@ import importlib
 import math
 import pygame
 from camera_eye import draw as draw_camera_eye
-from status_summary import live_checks
+from status_summary import live_checks, status_board
 from terrorism import threat_details
 from live_telemetry import Telemetry
 
@@ -89,7 +89,7 @@ class DesktopRenderer:
         ui.panel(x,y,w,h,label)
         if card is None:
             self.lines('No briefing selected',x+18,y+59,w-36,23,DIM)
-            self.lines('Source coverage remains in the live checks above. No returned items is not an all-clear.',x+18,y+118,w-36,17,DIM)
+            self.lines('Status checks remain visible on the left. No returned items is not an all-clear.',x+18,y+118,w-36,17,DIM)
             return
         # Labels are supplied by policy, not inferred from colour or feed health.
         state=card['state'].upper(); severity=card['severity'].upper()
@@ -118,34 +118,39 @@ class DesktopRenderer:
         track.width=round(track.width*max(0,min(1,remaining/total)))
         pygame.draw.rect(ui.target,TEAL,track)
 
-    def local(self,weather,failed,now):
+    def status_tiles(self,now):
         ui=self.ui
-        ui.panel(28,166,690,472,'LOCAL CONDITIONS / OPEN-METEO')
-        self.lines(ui.location.get('name','Configured area'),48,220,646,28,TEAL,2)
-        if weather:
-            ui.text(f"{weather['temp']:.0f}°",48,310,64,TEXT,True)
-            ui.text(ui.conditions(weather.get('code')),48,403,24,TEXT)
-            checked=weather.get('fetched')
-            stale=failed or checked is None or not 0<=now-checked<=1800
-            ui.text('STALE' if stale else 'CURRENT',48,457,16,AMBER if stale else TEAL)
-            ui.text('Checked '+stamp(checked),48,497,15,DIM)
-            ui.text('High '+str(weather.get('high','--'))+'° / Low '+str(weather.get('low','--'))+'°',48,535,20,TEAL)
-            # Small procedural weather icon; source conditions determine its form.
-            cx,cy=ui.point(595,345);r=max(8,round(35*ui.scale))
-            code=weather.get('code')
-            if code in (0,1,2):
-                pygame.draw.circle(ui.target,LIME,(cx,cy),r,2)
-                for i in range(8):
-                    a=i*math.pi/4+now*.015
-                    pygame.draw.line(ui.target,LIME,(cx+math.cos(a)*r*1.3,cy+math.sin(a)*r*1.3),(cx+math.cos(a)*r*1.6,cy+math.sin(a)*r*1.6),2)
-            if code not in (0,1):
-                for dx,dy,rr in [(-28,5,24),(0,-10,32),(29,7,23)]:
-                    pygame.draw.circle(ui.target,TEAL,(cx+round(dx*ui.scale),cy+round(dy*ui.scale)),round(rr*ui.scale),2)
+        self.status_hits=[]
+        for i,row in enumerate(status_board(self.context,now)):
+            x=28+(i%2)*350;y=105+(i//2)*58
+            tone=AMBER if row['state'] in ('alert','stale') else TEAL if row['state']=='ok' else DIM
+            rect=pygame.Rect(*ui.point(x,y),round(340*ui.scale),round(52*ui.scale))
+            pygame.draw.rect(ui.target,(10,21,29),rect)
+            pygame.draw.rect(ui.target,tone,(rect.x,rect.y,max(2,round(3*ui.scale)),rect.height))
+            ui.text(row['label'],x+12,y+5,11,DIM,True)
+            ui.text(row['value'],x+12,y+23,19,tone,True)
+            self.status_hits.append(((x,y,340,52),row['id']))
 
+    def local_compact(self,weather,failed,now):
+        ui=self.ui
+        ui.panel(28,469,690,169,'LOCAL WEATHER')
+        if not weather:
+            ui.text('Conditions unavailable',48,525,24,DIM);return
+        stale=failed or not 0<=now-weather.get('fetched',0)<=1800
+        ui.text(f"{weather['temp']:.0f}°",48,510,56,TEXT,True)
+        ui.text(ui.conditions(weather.get('code')),195,520,25,TEAL)
+        ui.text(f"High {weather.get('high','--')}° / Low {weather.get('low','--')}°",195,560,18,DIM)
+        ui.text('STALE' if stale else 'CURRENT',48,603,12,AMBER if stale else TEAL,True)
+        # Small weather glyph leaves the space for status results.
+        cx,cy=ui.point(652,550);radius=round(24*ui.scale)
+        if weather.get('code',0)<3:
+            pygame.draw.circle(ui.target,LIME,(cx,cy),radius,2)
+            for i in range(8):
+                angle=i*math.pi/4
+                ui.line((652+33*math.cos(angle),550+33*math.sin(angle)),(652+40*math.cos(angle),550+40*math.sin(angle)),LIME)
         else:
-            self.lines('Local weather unavailable',48,320,640,28,DIM)
-            self.lines('No successful check; conditions unknown.',48,397,640,18,DIM)
-        ui.text('Forecast conditions are not an official warning.',48,591,16,DIM)
+            for dx,dy,r in [(-18,4,16),(0,-7,22),(19,5,16)]:
+                pygame.draw.circle(ui.target,TEAL,ui.point(652+dx,550+dy),round(r*ui.scale),2)
 
     def details(self):
         ui=self.ui;card=self.detail
@@ -211,26 +216,21 @@ class DesktopRenderer:
         key=(int(now),workspace,automatic,paused,str(self.selected),self.page, bool(self.detail),ui.source_detail)
         if key!=ui.key:
             ui.key=key;ui.target=ui.static;ui.target.fill(BG);ui.links=[];ui.active_url=None;self.detail_buttons=[]
-            ui.text('N E X U S',28,22,25,TEXT,True)
-            ui.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'),28,55,18,LIME,True)
-            # Summary may count source rows, but does not choose priority content.
-            from alert_state import AlertState
-            alerts=AlertState().update(uk,uk_errors,now)
-            for i,(label,value,state) in enumerate(live_checks(uk,ui.emergency_data,now,uk_errors,alerts)):
-                x=245+i*251
-                ui.text(label,x,16,12,DIM,True)
-                ui.text(value,x,39,19,AMBER if state in ('alert','stale') else TEAL if state=='ok' else DIM,True)
-            threat=uk.get('threat');source,checked=threat_details(threat,now,'threat' in uk_errors)
-            assessment='SOURCES DIFFER' if threat and threat.get('disagreement') else (threat or {}).get('level','UNKNOWN')
-            ui.text('UK TERRORISM / '+assessment,28,91,17,TEXT,True)
-            ui.text(source,530,89,13,TEAL)
-            ui.text(checked,530,110,12,DIM)
-            ui.register((28,84,1224,45),(threat or {}).get('url','https://www.gov.uk/terrorism-national-emergency'))
-            ui.text(('AUTO BRIEFING' if automatic else NAMES[workspace].upper())+(' / PAUSED' if paused else ''),28,137,12,LIME,True)
-            ui.text('1 Situation   2 Cyber   3 Infrastructure   4 Node   5 Observatory (manual)',1252,137,12,DIM,right=True)
-            if primary:self.card(primary,(28,166,690,472),'PRIORITY / SOURCE WARNING')
-            else:self.local(weather,weather_failed,now)
-            self.card(briefing,(736,166,516,472),'BRIEFING / '+('AUTO' if automatic else NAMES[workspace].upper()))
+            ui.text('N E X U S',28,20,25,TEXT,True)
+            ui.text(dt.datetime.fromtimestamp(now).strftime('%H:%M:%S'),1252,18,30,LIME,True,right=True)
+            threat=uk.get('threat') or {}
+            assessment='SOURCES DIFFER' if threat.get('disagreement') else threat.get('level','UNKNOWN')
+            if 'threat' in uk_errors or not 0<=now-threat.get('fetched',0)<=7200:assessment+=' / STALE'
+            tone={'SEVERE':AMBER,'CRITICAL':(255,100,100),'SUBSTANTIAL':LIME}.get(threat.get('level'),TEAL)
+            ui.text('UK THREAT / '+assessment,350,22,23,tone,True)
+            ui.register((340,12,640,48),threat.get('url','https://www.gov.uk/terrorism-national-emergency'))
+            ui.line((28,65),(1252,65))
+            ui.text('LIVE STATUS / ALL CHECKS',28,81,13,TEAL,True)
+            ui.text(('AUTO BRIEFING' if automatic else NAMES[workspace].upper())+(' / PAUSED' if paused else ''),736,81,13,LIME,True)
+            self.status_tiles(now)
+            self.local_compact(weather,weather_failed,now)
+            shown=primary or briefing
+            self.card(shown,(736,105,516,533),'PRIORITY WARNING' if primary else 'BRIEFING')
             if not self.policy:
                 ui.panel(736,166,516,472,'BRIEFING / DEPENDENCY UNAVAILABLE')
                 self.lines('Shared briefing policy is not installed.',756,235,476,25,AMBER)
@@ -249,6 +249,5 @@ class DesktopRenderer:
             self.network(self.context['network'])
             return
         if not self.detail and not ui.source_detail:
-            self.countdown(primary,self.priority,(28,166,690,472),selection_now)
-            self.countdown(briefing,self.stream,(736,166,516,472),selection_now)
-        draw_camera_eye(ui.target,self.context['motion'],now,ui.point(208,35),max(6,round(12*ui.scale)))
+            self.countdown(primary or briefing,self.priority if primary else self.stream,(736,105,516,533),selection_now)
+        draw_camera_eye(ui.target,self.context['motion'],now,ui.point(226,34),max(6,round(12*ui.scale)))

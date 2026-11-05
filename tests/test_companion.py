@@ -62,7 +62,7 @@ class PersistentConsoleTests(unittest.TestCase):
         view=Companion()
         data={'threat':{'level':'severe','fetched':10000}}
         for age in (0,12,24):
-            pixel=view.draw(data,10000,age,'').get_at((2,60))
+            pixel=view.draw(data,10000,age,'').get_at((2,25))
             self.assertGreater(pixel.r,200)
             self.assertGreater(pixel.g,100)
             self.assertLess(pixel.b,150)
@@ -91,7 +91,7 @@ class ScifiMotionTests(unittest.TestCase):
         view=Companion()
         data={'weather':{'fetched':10000,'items':[{'title':'Yellow wind warning','colour':'yellow'}]}}
         surface=view.draw(data,10000,3,'')
-        pixel=surface.get_at((310,90))
+        pixel=surface.get_at((320,40))
         self.assertGreater(pixel.r,200)
         self.assertGreater(pixel.g,180)
         self.assertLess(pixel.b,100)
@@ -124,11 +124,12 @@ class WeatherEmphasisTests(unittest.TestCase):
     def test_weather_icon_remains_visible_across_briefing_pages(self):
         view=Companion()
         data={'weather':{'fetched':10000,'items':[{'title':'Yellow wind warning','colour':'yellow'}]}}
-        with patch.object(view,'weather_icon') as icon:
+        with patch.object(view,'text',wraps=view.text) as text:
             for age in (3,16,29,42):
-                icon.reset_mock()
+                text.reset_mock()
                 view.draw(data,10000,age,'')
-                self.assertTrue(any(call.args[1:3]==(418,77) for call in icon.call_args_list))
+                self.assertIn('YELLOW / 1',[call.args[0] for call in text.call_args_list])
+
 
 
 class OfflineScreenTests(unittest.TestCase):
@@ -146,9 +147,9 @@ class OfflineScreenTests(unittest.TestCase):
 
 class StatusPanelsTests(unittest.TestCase):
     def test_weather_empty_missing_and_stale_are_distinct(self):
-        for sample,expected in ((None,'WARNINGS / UNAVAILABLE'),
-                                ({'fetched':10000,'items':[]},'NO ACTIVE WARNINGS'),
-                                ({'fetched':0,'items':[]},'WARNINGS / STALE')):
+        for sample,expected in ((None,'UNREADABLE'),
+                                ({'fetched':10000,'items':[]},'NONE'),
+                                ({'fetched':0,'items':[]},'STALE')):
             view=Companion()
             with patch.object(view,'text') as text:
                 view.draw({'weather':sample},10000,3,'')

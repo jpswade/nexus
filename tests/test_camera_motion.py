@@ -45,6 +45,14 @@ class MotionTests(unittest.TestCase):
             self.assertTrue(r.snapshot(101)['online'])
             self.assertEqual(r.snapshot(116)['state'],'unavailable')
 
+    def test_worker_update_during_frame_is_not_false_camera_loss(self):
+        with tempfile.TemporaryDirectory() as directory:
+            p=Path(directory)/'motion.json'
+            p.write_text(json.dumps({'checked':101,'online':True,'observe':False}))
+            reader=MotionReader(p)
+            self.assertTrue(reader.snapshot(100)['online'])
+            self.assertFalse(reader.snapshot(90)['online'])
+
     def test_observation_draws_nothing_and_eye_stays_local(self):
         for radius,size,center in [(8,(480,320),(366,15)),(12,(1280,720),(208,35))]:
             s=pygame.Surface(size);s.fill('black')

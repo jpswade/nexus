@@ -152,7 +152,7 @@ class LayoutTests(unittest.TestCase):
         for profile in ('uk', 'technical'):
             for workspace in range(4):
                 ui.draw(workspace,48,48,NOW,None,False,{},set(),{},set(),{},set(),profile=profile,manual_terminal=True)
-                self.assertEqual(ui.clicked_url((500,300)), URL)
+                self.assertEqual(ui.clicked_url((900,300)), URL)
                 self.assertLess(len(ui.links), 20)
 
 

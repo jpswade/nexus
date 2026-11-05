@@ -92,11 +92,11 @@ class FocusedDesktop:
 
     def click_detail(self, point):
         x,y=point
-        if 233<=x<1252 and 12<=y<=66:
-            source=HEADERS[min(3,int((x-233)//251))]
-            self.source_detail=None if self.source_detail==source else source
-            self.key=None
-            return True
+        for rect,source in getattr(self.renderer,'status_hits',[]):
+            if source in HEADERS and pygame.Rect(rect).collidepoint(point):
+                self.source_detail=None if self.source_detail==source else source
+                self.key=None
+                return True
         if self.source_detail and 810<=x<=900 and 110<=y<=145:
             self.source_detail=None
             self.key=None

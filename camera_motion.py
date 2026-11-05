@@ -148,7 +148,8 @@ class MotionReader:
             try: self.sample = json.loads(self.path.read_text())
             except (OSError, ValueError): self.sample = {}
         sample = dict(self.sample)
-        if sample and not 0 <= now-sample.get('checked',0) <= 15:
+        # The worker can publish after this frame's timestamp but before this read.
+        if sample and not -2 <= now-sample.get('checked',0) <= 15:
             sample.update(online=False, state='unavailable')
         return sample
 

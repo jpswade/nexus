@@ -72,8 +72,9 @@ class DetailsTests(unittest.TestCase):
         pygame.init()
         screen=pygame.display.set_mode((1280,720))
         ui=FocusedDesktop(screen,{},preview=True)
+        ui.draw(0,0,0,10000,None,False,{},set(),{},set(),{},set())
         for i,source in enumerate(('gov','grid','weather','floods')):
-            self.assertTrue(ui.click_detail((245+i*251,40)))
+            self.assertTrue(ui.click_detail((45+(i%2)*350,120+(i//2)*58)))
             self.assertEqual(ui.source_detail,source)
             ui.draw(0,0,0,10000,None,False,{},set(),{},set(),{},set())
             self.assertTrue(ui.clicked_url((370,615)).startswith('https://'))
@@ -88,7 +89,7 @@ class DetailsTests(unittest.TestCase):
         with patch.object(view,'text',wraps=view.text) as text:
             view.draw({},10000,35,'')
             values=[c.args[0] for c in text.call_args_list]
-            self.assertIn('GOV.UK NOT CHECKED',values)
+            self.assertIn('EMERGENCY',values);self.assertIn('NOT CHECKED',values)
             self.assertIn('No priority item',values)
             self.assertIn('Wi-Fi --',values)
         with patch.object(view,'text',wraps=view.text) as text:

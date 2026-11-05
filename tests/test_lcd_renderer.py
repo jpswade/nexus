@@ -128,9 +128,9 @@ class ContractTests(unittest.TestCase):
             view.draw({'threat':threat},NOW,0,'')
         values=[c.args[0] for c in text.call_args_list]
         self.assertTrue(any('SOURCES DIFFER' in v for v in values))
-        self.assertIn('GOV.UK SEVERE / MI5 SUBSTANTIAL',values)
-        self.assertIn('GRID UNREADABLE',values)
-        self.assertIn('FLOODS UNREADABLE',values)
+        self.assertNotIn('GOV.UK SEVERE / MI5 SUBSTANTIAL',values)
+        self.assertIn('GRID',values);self.assertIn('UNREADABLE',values)
+        self.assertIn('FLOODS',values)
 
     def test_physical_rotation_preserves_rgb565(self):
         view=view_for(card())
@@ -152,6 +152,6 @@ class ContractTests(unittest.TestCase):
         view.source_records={'floods':{'failed':True,'attempted':NOW}}
         with patch.object(view,'text',wraps=view.text) as text:
             view.draw({'floods':{'fetched':NOW,'items':[]}},NOW,0,'')
-        self.assertIn('FLOODS STALE',[c.args[0] for c in text.call_args_list])
+        self.assertIn('STALE',[c.args[0] for c in text.call_args_list])
         context=view.policy.build_cards.call_args.args[0]
         self.assertTrue(context['source_records']['floods']['failed'])
