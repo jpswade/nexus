@@ -89,7 +89,7 @@ class DesktopRenderer:
         ui.panel(x,y,w,h,label)
         if card is None:
             self.lines('No briefing selected',x+18,y+59,w-36,23,DIM)
-            self.lines('Source coverage remains in the live checks above. No returned items is not an all-clear.',x+18,y+118,w-36,17,DIM)
+            self.lines('Status checks remain visible on the left. No returned items is not an all-clear.',x+18,y+118,w-36,17,DIM)
             return
         # Labels are supplied by policy, not inferred from colour or feed health.
         state=card['state'].upper(); severity=card['severity'].upper()

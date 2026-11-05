@@ -215,7 +215,10 @@ class Companion:
             pinned=[c for c in self.cards if c['pinned'] and c['duration']>0]
             card = self.rotation.select(pinned or self.cards, now)
         context=getattr(self,'status_context',dict(uk=data,emergency=self.emergency_data,uk_errors=errors))
-        rows={r['id']:r for r in status_board(context,now)}
+        if getattr(self,'status_tick',None)!=int(now):
+            self.status_tick=int(now)
+            self.status_rows=status_board(context,now)
+        rows={r['id']:r for r in self.status_rows}
         space=[rows[k] for k in ('G','R','S')]
         rows['space']=dict(label='SPACE / G R S',value=' '.join(r['value'].split(' / ')[0] if r['value']!='UNKNOWN' else r['id']+'?' for r in space),state='stale' if any(r['state']=='stale' for r in space) else 'unknown' if any(r['state']=='unknown' for r in space) else 'alert' if any(r['state']=='alert' for r in space) else 'ok')
         labels={'gov':'EMERGENCY','grid':'GRID','weather':'WEATHER','floods':'FLOODS','internet':'UK INTERNET','space':'SPACE / G R S','ncsc':'CYBER TODAY','govuk':'BRIEFINGS','camera':'CAMERA'}
