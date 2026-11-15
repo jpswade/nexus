@@ -79,7 +79,7 @@ class NetworkMonitor:
         self.sequence += 1
         with self.lock:
             self.state = dict(label=label, detail=detail, colour=colour,
-                              checked=time.time(), latency=latency, failures=self.failures, offline=self.failures>=3, minimum=self.minimum, maximum=self.maximum, history=list(self.history), sequence=self.sequence)
+                              checked=time.time(), interface=interface, carrier=carrier, lan=lan, latency=latency, failures=self.failures, offline=self.failures>=3, minimum=self.minimum, maximum=self.maximum, history=list(self.history), sequence=self.sequence)
 
     def start(self):
         def worker():
