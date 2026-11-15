@@ -3,7 +3,7 @@ Description=Nexus red LED warning indicator
 
 [Service]
 WorkingDirectory=%h/dashboard
-ExecStart=/usr/bin/python3 %h/dashboard/warning_led.py
+ExecStart=/usr/bin/python3 %h/dashboard/warning_led.py --offline-only
 Restart=on-failure
 RestartSec=10
 
